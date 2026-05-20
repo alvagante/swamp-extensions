@@ -2,5 +2,8 @@ swampVersion: 20260520.085517.0
 initializedAt: '2026-05-20T11:32:45.982Z'
 repoId: 39ae16c1-55df-47b4-a82a-271a8d112d61
 tools:
+  - codex
   - claude
+  - kiro
 gitignoreManaged: true
+upgradedAt: '2026-05-20T13:26:12.854Z'
