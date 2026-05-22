@@ -1,0 +1,14 @@
+manifestVersion: 1
+name: "@alvagante/docker-image-test"
+version: "2026.05.20.7"
+description: "Local Docker image smoke testing for swamp: build image matrices, run containers, poll health checks, capture logs, and clean up."
+repository: "https://github.com/alvagante/swamp-extensions"
+models:
+  - docker_image_runner.ts
+additionalFiles:
+  - README.md
+  - LICENSE.txt
+labels:
+  - docker
+  - testing
+  - containers

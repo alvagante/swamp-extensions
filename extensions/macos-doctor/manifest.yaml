@@ -1,0 +1,21 @@
+manifestVersion: 1
+name: "@alvagante/macos-doctor"
+version: "2026.05.22.1"
+description: "Read-only local macOS security, sanity, and performance posture checks with a severity-rated report."
+repository: "https://github.com/alvagante/swamp-extensions"
+models:
+  - macos_doctor.ts
+reports:
+  - macos_doctor_report.ts
+additionalFiles:
+  - README.md
+  - LICENSE.txt
+platforms:
+  - darwin-aarch64
+  - darwin-x86_64
+labels:
+  - macos
+  - security
+  - audit
+  - performance
+  - diagnostics

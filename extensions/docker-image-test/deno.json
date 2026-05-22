@@ -1,0 +1,12 @@
+{
+  "lint": {
+    "rules": {
+      "exclude": ["no-import-prefix"]
+    }
+  },
+  "tasks": {
+    "check": "deno check extensions/models/*.ts",
+    "fmt": "deno fmt deno.json manifest.yaml README.md LICENSE.txt extensions/",
+    "lint": "deno lint extensions/"
+  }
+}
