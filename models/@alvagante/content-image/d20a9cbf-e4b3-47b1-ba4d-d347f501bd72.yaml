@@ -1,0 +1,9 @@
+type: '@alvagante/content-image'
+typeVersion: 2026.06.15.2
+id: d20a9cbf-e4b3-47b1-ba4d-d347f501bd72
+name: my-image
+version: 1
+tags: {}
+globalArguments:
+  apiKey: '${{ vault.get(openai-keys, api-key) }}'
+methods: {}

@@ -1,0 +1,16 @@
+{
+  "@alvagante/content-ixen": {
+    "version": "2026.06.15.1",
+    "pulledAt": "2026-06-14T22:25:22.558Z",
+    "files": [
+      ".swamp/pulled-extensions/@alvagante/content-ixen/models/content_ixen.ts",
+      ".swamp/bundles/af59c063/content_ixen.js",
+      ".swamp/pulled-extensions/@alvagante/content-ixen/files/README.md",
+      ".swamp/pulled-extensions/@alvagante/content-ixen/files/LICENSE.txt",
+      ".swamp/pulled-extensions/@alvagante/content-ixen/manifest.yaml"
+    ],
+    "checksum": "c87379c6e4b3bae378c5711fb5be694183a531bf257fa7c4e8a41f345e20dd45",
+    "filesChecksum": "b07eae83be16450058b37a66c3e12655440b59436d2db527c13062439fa92d22",
+    "serverUrl": "https://swamp-club.com"
+  }
+}

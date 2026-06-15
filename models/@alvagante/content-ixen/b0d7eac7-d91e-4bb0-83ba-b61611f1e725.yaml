@@ -1,0 +1,9 @@
+type: '@alvagante/content-ixen'
+typeVersion: 2026.06.15.1
+id: b0d7eac7-d91e-4bb0-83ba-b61611f1e725
+name: my-ixen
+version: 1
+tags: {}
+globalArguments:
+  apiKey: '${{ vault.get(anthropic-keys, api-key) }}'
+methods: {}

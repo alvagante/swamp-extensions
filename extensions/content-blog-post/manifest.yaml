@@ -1,0 +1,19 @@
+manifestVersion: 1
+name: "@alvagante/content-blog-post"
+version: "2026.06.12.1"
+description: "Generate publication-ready blog posts on any topic using Claude or any OpenAI-compatible endpoint, or save agent-written posts keylessly. Configurable skill level (novice/intermediate/senior/guru), output length, writing persona (neutral/alvabot/abnormalia), and model selection."
+repository: "https://github.com/alvagante/swamp-extensions"
+models:
+  - content_blog_post.ts
+additionalFiles:
+  - README.md
+  - LICENSE.txt
+platforms:
+  - linux-x86_64
+  - darwin-aarch64
+labels:
+  - content
+  - blog
+  - writing
+  - ai
+  - anthropic

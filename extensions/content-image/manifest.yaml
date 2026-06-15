@@ -1,0 +1,19 @@
+manifestVersion: 1
+name: "@alvagante/content-image"
+version: "2026.06.15.2"
+description: "Generate images using the OpenAI Images API (gpt-image-1.5 by default). Supports transparent PNG output and 9 style presets: ixen-dark, ixen-light, pencil-bw, pencil-color-accents, blueprint, technical-diagram, cyberpunk-photo, educational, none. Optional outputDir for composing multi-media mini-sites alongside content-ixen pages."
+repository: "https://github.com/alvagante/swamp-extensions"
+models:
+  - content_image.ts
+additionalFiles:
+  - README.md
+  - LICENSE.txt
+platforms:
+  - linux-x86_64
+  - darwin-aarch64
+labels:
+  - content
+  - image
+  - openai
+  - ai
+  - media

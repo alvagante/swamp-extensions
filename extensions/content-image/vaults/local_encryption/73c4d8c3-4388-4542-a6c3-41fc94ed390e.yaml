@@ -1,0 +1,7 @@
+id: 73c4d8c3-4388-4542-a6c3-41fc94ed390e
+name: openai-keys
+type: local_encryption
+config:
+  auto_generate: true
+  base_dir: /Users/al/Documents/GITHUB/swamp-extensions/extensions/content-image
+createdAt: '2026-06-14T21:31:25.152Z'
