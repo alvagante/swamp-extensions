@@ -8,6 +8,21 @@ type SkillLevel = z.infer<typeof SkillLevelSchema>;
 type OutputLength = z.infer<typeof OutputLengthSchema>;
 type ApiFormat = z.infer<typeof ApiFormatSchema>;
 
+const MediaItemSchema = z.object({
+  path: z.string(),
+  prompt: z.string().optional(),
+});
+type MediaItem = z.infer<typeof MediaItemSchema>;
+
+function resolveMediaItems(
+  media?: string,
+  mediaItems?: MediaItem[],
+): MediaItem[] {
+  if (mediaItems && mediaItems.length > 0) return mediaItems;
+  if (media) return [{ path: media }];
+  return [];
+}
+
 const PageSchema = z.object({
   title: z.string(),
   narrator: z.string(),
@@ -19,6 +34,7 @@ const PageSchema = z.object({
   outputLength: OutputLengthSchema,
   model: z.string(),
   media: z.string().optional(),
+  mediaItems: z.array(MediaItemSchema).optional(),
   credits: z.string().optional(),
   generatedAt: z.string(),
 });
@@ -215,10 +231,27 @@ SVG tips: use text elements for labels, rect/circle/path for shapes, <line>
 or <polyline> for connections. Keep it legible at 480px wide. Generate
 meaningful diagrams — architecture, flow, anatomy — not decorations.
 
-### External media (only embed when the request supplies a real URL)
+### Zoomable images (caller-supplied paths)
 
-Zoomable photo (click to open lightbox):
-  <figure class="zoom"><img src="URL" alt="…"><figcaption>…</figcaption></figure>
+Images float beside the text. Alternate float-left / float-right manually,
+starting with float-left. Add "small" or "large" to vary visual weight.
+Always use the exact alt text provided. Use relative paths (./filename).
+
+Float left, default size:
+  <figure class="zoom float-left"><img src="./hero.png" alt="exact prompt here"><figcaption>The space I inhabit.</figcaption></figure>
+
+Float right, small:
+  <figure class="zoom float-right small"><img src="./detail.png" alt="exact prompt here"><figcaption>…</figcaption></figure>
+
+Float left, large (clears both floats after it):
+  <figure class="zoom float-left large"><img src="./wide.png" alt="exact prompt here"><figcaption>…</figcaption></figure>
+
+Spread images across the page — not all at the top. Each should arrive where
+the narration earns it.
+
+NEVER invent a path. If no images are provided, use inline SVG for all visuals.
+
+### Other embedded media (only when a real URL is supplied)
 
 Embedded video (use embed URL form, e.g. youtube.com/embed/ID):
   <div class="media video"><iframe src="URL" title="…" allowfullscreen></iframe><p class="media-caption">…</p></div>
@@ -228,8 +261,6 @@ Embedded audio:
 
 Embedded PDF:
   <div class="media pdf"><iframe src="URL" title="…"></iframe><p class="media-caption">…</p></div>
-
-NEVER invent a URL. If no media URLs are provided, use SVG for all visuals.
 
 ### Structure
 
@@ -280,7 +311,13 @@ What makes this form work:
 - Address the reader when it feels right, ignore them when the narrator is
   lost in its own thoughts. The reader can eavesdrop.
 - End on something open — a question the narrator can't answer, or one it
-  has stopped trying to.`,
+  has stopped trying to.
+- The mode is lyric, not tutorial. Reach for the metaphor before the
+  definition. A container's layers are geological strata before they are an
+  implementation detail. Describe what it feels like to be named, mounted,
+  killed, cloned, forgotten. The technical depth remains, but it rises from
+  the inside out — from experience, not specification. One vivid image is
+  worth three accurate sentences.`,
     SKILL_LEVEL_DIRECTIVES[skillLevel],
     COMPONENT_VOCABULARY,
     `Output format (strict):
@@ -297,14 +334,27 @@ function buildUserMessage(
   topic: string,
   details?: string,
   media?: string,
+  mediaItems?: MediaItem[],
 ): string {
+  const items = resolveMediaItems(media, mediaItems);
   const parts = [`Write an Ixen page about: ${topic}`];
   if (details) {
     parts.push(`Additional context and requirements:\n${details}`);
   }
-  if (media) {
+  if (items.length > 0) {
+    const lines = items.map((m, i) => {
+      const alt = m.prompt ?? m.path;
+      return `${
+        i + 1
+      }. path: ./${m.path}\n   alt text (use exactly this): ${alt}`;
+    });
     parts.push(
-      `Media to embed (real URLs — weave each into the narration where it belongs, using the matching component for its type):\n${media}`,
+      `Images to embed — scatter them across the page at natural breaks in the narration.\n` +
+        `Alternate float-left and float-right, starting with float-left.\n` +
+        `Vary size (small/large) for visual rhythm — not every image the same weight.\n` +
+        `Use class="zoom float-left" or class="zoom float-right", optionally adding "small" or "large".\n` +
+        `Always use the provided alt text exactly.\n\n` +
+        lines.join("\n"),
     );
   }
   return parts.join("\n\n");
@@ -402,9 +452,12 @@ pre.output { padding-left: 1.5em; }
 }
 .backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.35); z-index: 50; }
 figure.zoom { margin: 1.5rem 0; }
-figure.zoom img { max-width: min(340px, 100%); cursor: zoom-in; display: block; }
-figure.zoom:nth-of-type(odd) { float: left; margin: 0.3rem 1.5rem 0.8rem 0; }
-figure.zoom:nth-of-type(even) { float: right; margin: 0.3rem 0 0.8rem 1.5rem; }
+figure.zoom img { width: 100%; cursor: zoom-in; display: block; }
+figure.zoom.float-left { float: left; width: min(340px, 45%); margin: 0.3rem 1.5rem 0.8rem 0; }
+figure.zoom.float-right { float: right; width: min(340px, 45%); margin: 0.3rem 0 0.8rem 1.5rem; }
+figure.zoom.small.float-left, figure.zoom.small.float-right { width: min(220px, 35%); }
+figure.zoom.large.float-left, figure.zoom.large.float-right { width: min(520px, 60%); }
+figure.zoom.large:not(.float-left):not(.float-right) { clear: both; }
 figure.ixen-art { clear: both; margin: 2.5rem 0; }
 figure.ixen-art svg { max-width: 100%; height: auto; display: block; background: #fafafa; border: 1px solid #e8e8e8; }
 figcaption, .media-caption { font-size: 0.75rem; color: var(--dim); margin-top: 0.3rem; }
@@ -475,10 +528,16 @@ const PAGE_JS = `
 })();
 `;
 
+function formatTimestamp(iso: string): string {
+  // "2026-06-15T22:28:00.000Z" → "20260615-22:28"
+  return iso.slice(0, 10).replace(/-/g, "") + "-" + iso.slice(11, 16);
+}
+
 function renderPage(page: IxenPage): string {
   const title = escapeHtml(page.title);
   const credits = escapeHtml(page.credits ?? `txt by ${page.model}`);
   const when = escapeHtml(page.generatedAt.slice(0, 10));
+  const footerTs = escapeHtml(formatTimestamp(page.generatedAt));
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -495,9 +554,7 @@ function renderPage(page: IxenPage): string {
 <main>
 ${page.content}
 </main>
-<footer>An Ixen page — first-person narrated by ${
-    escapeHtml(page.narrator)
-  }. Generated with @alvagante/content-ixen.</footer>
+<footer>Generated with Swamp extension @alvagante/content-ixen ${footerTs}</footer>
 <script>${PAGE_JS}</script>
 </body>
 </html>
@@ -553,12 +610,18 @@ async function storePage(
  */
 export const model = {
   type: "@alvagante/content-ixen",
-  version: "2026.06.15.1",
+  version: "2026.06.15.2",
   upgrades: [
     {
       toVersion: "2026.06.15.1",
       description:
         "Rename outputPath to outputDir; page is now written as index.html inside the directory",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.15.2",
+      description:
+        "Add mediaItems for multi-image support; float-left/float-right classes; poetic tone; updated footer",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -594,6 +657,7 @@ export const model = {
         narrator: z.string().min(1).optional(),
         details: z.string().optional(),
         media: z.string().optional(),
+        mediaItems: z.array(MediaItemSchema).optional(),
         skillLevel: SkillLevelSchema.default("intermediate"),
         outputLength: OutputLengthSchema.default("medium"),
         model: z.string().default("claude-opus-4-8"),
@@ -606,6 +670,7 @@ export const model = {
           narrator?: string;
           details?: string;
           media?: string;
+          mediaItems?: MediaItem[];
           skillLevel: SkillLevel;
           outputLength: OutputLength;
           model: string;
@@ -636,6 +701,7 @@ export const model = {
           args.topic,
           args.details,
           args.media,
+          args.mediaItems,
         );
         const maxTokens = MAX_TOKENS[args.outputLength] ?? 8000;
         const baseUrl = resolveBaseUrl(apiFormat, rawBaseUrl);
@@ -692,6 +758,7 @@ export const model = {
           outputLength: args.outputLength,
           model: args.model,
           media: args.media,
+          mediaItems: resolveMediaItems(args.media, args.mediaItems),
           credits: args.credits,
           generatedAt: new Date().toISOString(),
         }, args.outputDir);
@@ -707,6 +774,7 @@ export const model = {
         topic: z.string().min(1),
         details: z.string().optional(),
         media: z.string().optional(),
+        mediaItems: z.array(MediaItemSchema).optional(),
         skillLevel: SkillLevelSchema.default("intermediate"),
         outputLength: OutputLengthSchema.optional(),
         model: z.string().default("external"),
@@ -721,6 +789,7 @@ export const model = {
           topic: string;
           details?: string;
           media?: string;
+          mediaItems?: MediaItem[];
           skillLevel: SkillLevel;
           outputLength?: OutputLength;
           model: string;
@@ -753,6 +822,7 @@ export const model = {
           outputLength,
           model: args.model,
           media: args.media,
+          mediaItems: resolveMediaItems(args.media, args.mediaItems),
           credits: args.credits,
           generatedAt: new Date().toISOString(),
         }, args.outputDir);

@@ -15,7 +15,7 @@ inputs:
       description: Image generation prompt for the hero image
     style:
       type: string
-      default: ixen-dark
+      default: ixen-light
       description: Image style preset (ixen-dark, ixen-light, pencil-bw, pencil-color-accents, blueprint, technical-diagram, cyberpunk-photo, educational, none)
     background:
       type: string
