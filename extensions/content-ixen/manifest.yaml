@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@alvagante/content-ixen"
-version: "2026.06.15.2"
+version: "2026.06.16.1"
 description: "Generate Ixen pages — self-narrated, mixed-media web pages in the tradition of 'I, Xen' (2005), where the technology itself speaks in first person while teaching real technical content. Self-contained HTML output with pop-up command windows, zoomable images, embedded video/audio/PDF. Uses Claude or any OpenAI-compatible endpoint, or saves agent-written pages keylessly."
 repository: "https://github.com/alvagante/swamp-extensions"
 models:

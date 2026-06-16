@@ -1,0 +1,10 @@
+type: '@alvagante/content-music'
+typeVersion: 2026.06.16.1
+id: 5241e234-9ea3-4a66-81d7-d106b6955191
+name: my-music
+version: 1
+tags: {}
+globalArguments:
+  apiKey: '${{ vault.get(onemin-keys, API_KEY) }}'
+  anthropicApiKey: '${{ vault.get(anthropic-keys, api-key) }}'
+methods: {}

@@ -1,15 +1,15 @@
 id: 12c74cfd-aa80-4d9b-a16c-dcca6928f689
 name: content-mini-site
-description: Generate a mini-site with an AI hero image and a first-person narrated Ixen page
-version: 1
+description: Generate a mini-site with an AI hero image, a first-person narrated Ixen page, and a background music track
+version: 2
 inputs:
   properties:
     outputDir:
       type: string
-      description: Directory where hero.png and index.html will be written
+      description: Directory where all files (hero.png, audio, index.html) will be written
     topic:
       type: string
-      description: Topic for the Ixen page
+      description: Topic for the Ixen page and music
     heroPrompt:
       type: string
       description: Image generation prompt for the hero image
@@ -24,11 +24,19 @@ inputs:
     skillLevel:
       type: string
       default: intermediate
-      description: Reader skill level for the Ixen page (novice, intermediate, senior, guru)
+      description: Reader skill level (novice, intermediate, senior, guru)
     outputLength:
       type: string
       default: medium
       description: Page length (short, medium, long)
+    musicGenre:
+      type: string
+      default: ambient
+      description: Music genre for the background track
+    musicMood:
+      type: string
+      default: contemplative
+      description: Music mood for the background track
   required:
     - outputDir
     - topic
@@ -49,10 +57,27 @@ jobs:
             background: ${{ inputs.background }}
             filename: hero.png
             outputDir: ${{ inputs.outputDir }}
+  - name: music
+    description: Generate background music track
+    steps:
+      - name: track
+        description: Generate song lyrics and audio, write to outputDir
+        task:
+          type: model_method
+          modelIdOrName: my-music
+          methodName: generate
+          inputs:
+            topic: ${{ inputs.topic }}
+            genre: ${{ inputs.musicGenre }}
+            mood: ${{ inputs.musicMood }}
+            outputDir: ${{ inputs.outputDir }}
   - name: page
-    description: Generate Ixen narrated page referencing hero.png
+    description: Generate Ixen narrated page with hero image and music player
     dependsOn:
       - job: images
+        condition:
+          type: succeeded
+      - job: music
         condition:
           type: succeeded
     steps:
@@ -68,3 +93,6 @@ jobs:
             skillLevel: ${{ inputs.skillLevel }}
             outputLength: ${{ inputs.outputLength }}
             outputDir: ${{ inputs.outputDir }}
+            musicFilename: ${{ data.latest("my-music", "song").attributes.filename }}
+            musicTitle: ${{ data.latest("my-music", "song").attributes.title }}
+            musicLyrics: ${{ data.latest("my-music", "song").attributes.lyrics }}

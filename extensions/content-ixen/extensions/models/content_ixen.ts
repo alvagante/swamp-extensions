@@ -14,12 +14,36 @@ const MediaItemSchema = z.object({
 });
 type MediaItem = z.infer<typeof MediaItemSchema>;
 
+const MusicTrackSchema = z.object({
+  title: z.string(),
+  filename: z.string(),
+  lyrics: z.string().optional(),
+});
+type MusicTrack = z.infer<typeof MusicTrackSchema>;
+
 function resolveMediaItems(
   media?: string,
   mediaItems?: MediaItem[],
 ): MediaItem[] {
   if (mediaItems && mediaItems.length > 0) return mediaItems;
   if (media) return [{ path: media }];
+  return [];
+}
+
+function resolveMusicTracks(
+  tracks?: MusicTrack[],
+  filename?: string,
+  title?: string,
+  lyrics?: string | null,
+): MusicTrack[] {
+  if (tracks && tracks.length > 0) return tracks;
+  if (filename) {
+    return [{
+      title: title ?? filename,
+      filename,
+      lyrics: lyrics ?? undefined,
+    }];
+  }
   return [];
 }
 
@@ -35,6 +59,7 @@ const PageSchema = z.object({
   model: z.string(),
   media: z.string().optional(),
   mediaItems: z.array(MediaItemSchema).optional(),
+  musicTracks: z.array(MusicTrackSchema).optional(),
   credits: z.string().optional(),
   generatedAt: z.string(),
 });
@@ -480,6 +505,90 @@ section.chapter { clear: both; margin: 3rem 0; }
 footer { clear: both; margin-top: 4rem; font-size: 0.72rem; color: var(--dim); }
 `;
 
+const MUSIC_PLAYER_CSS = `
+/* autoplay-blocked overlay */
+#ixen-autoplay-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.6);
+  z-index: 90;
+  display: flex;
+  align-items: center; justify-content: center;
+  cursor: pointer;
+}
+.ixen-play-prompt {
+  font-family: "Courier New", Courier, monospace;
+  color: #eee; text-align: center;
+  border: 1px solid #555;
+  padding: 1.5rem 3rem;
+  letter-spacing: 0.06em;
+}
+.ixen-play-icon { font-size: 2.5rem; display: block; margin-bottom: 0.4rem; }
+.ixen-play-label { font-size: 0.82rem; color: #888; }
+/* fixed bottom player */
+#ixen-player {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  background: #0e0e0e;
+  border-top: 2px solid #c00;
+  z-index: 80;
+  padding: 0.45rem 1.2rem 0.35rem;
+  font-family: "Courier New", Courier, monospace;
+  font-size: 0.78rem; color: #ccc;
+}
+#ixen-player-row {
+  display: flex; align-items: center; gap: 0.7rem;
+}
+.ixen-pbtn {
+  background: none; border: none; color: #888; cursor: pointer;
+  font: inherit; font-size: 1rem;
+  padding: 0.15rem 0.3rem; line-height: 1; flex-shrink: 0;
+}
+.ixen-pbtn:hover { color: #c00; }
+#ixen-ptitle {
+  flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  color: #c00; font-weight: bold; letter-spacing: 0.02em;
+}
+#ixen-ptime { color: #444; white-space: nowrap; font-size: 0.72rem; }
+#ixen-vol { width: 55px; accent-color: #c00; cursor: pointer; flex-shrink: 0; }
+#ixen-pbar { height: 2px; background: #222; cursor: pointer; margin-top: 0.35rem; }
+#ixen-pfill { height: 100%; background: #c00; width: 0%; pointer-events: none; }
+/* lyrics panel */
+#ixen-lyrics-panel {
+  position: fixed; bottom: 52px; left: 50%; transform: translateX(-50%);
+  width: min(640px, 90vw); max-height: 45vh; overflow-y: auto;
+  background: #0e0e0e;
+  border: 1px solid #2a2a2a; border-bottom: none;
+  padding: 1rem 1.4rem; z-index: 81;
+}
+.ixen-lyrics-head {
+  font-family: "Courier New", Courier, monospace;
+  color: #c00; font-weight: bold;
+  font-size: 0.78rem; letter-spacing: 0.05em;
+  text-transform: uppercase; margin-bottom: 0.7rem;
+}
+#ixen-lyrics-panel pre {
+  font-family: "Courier New", Courier, monospace;
+  font-size: 0.82rem; line-height: 1.85;
+  color: #bbb; white-space: pre-wrap; margin: 0;
+}
+/* tracklist panel */
+#ixen-tracklist-panel {
+  position: fixed; bottom: 52px; right: 1.2rem;
+  background: #0e0e0e;
+  border: 1px solid #2a2a2a; border-bottom: none;
+  padding: 0.4rem; z-index: 81;
+  min-width: 200px; max-height: 60vh; overflow-y: auto;
+}
+.ixen-track-item {
+  display: block; width: 100%; text-align: left;
+  background: none; border: none; color: #888;
+  font-family: "Courier New", Courier, monospace;
+  font-size: 0.78rem; cursor: pointer;
+  padding: 0.35rem 0.5rem;
+}
+.ixen-track-item:hover { color: #eee; }
+.ixen-track-item.active { color: #c00; }
+`;
+
 const PAGE_JS = `
 (function () {
   var backdrop = document.createElement("div");
@@ -528,9 +637,154 @@ const PAGE_JS = `
 })();
 `;
 
+const MUSIC_PLAYER_JS = `
+(function(){
+var T=JSON.parse(document.getElementById('ixen-tracks-data').textContent);
+var au=document.getElementById('ixen-audio');
+var playBtn=document.getElementById('ixen-play-btn');
+var prevBtn=document.getElementById('ixen-prev-btn');
+var nextBtn=document.getElementById('ixen-next-btn');
+var pbar=document.getElementById('ixen-pbar');
+var pfill=document.getElementById('ixen-pfill');
+var ptime=document.getElementById('ixen-ptime');
+var ptitle=document.getElementById('ixen-ptitle');
+var vol=document.getElementById('ixen-vol');
+var lyrBtn=document.getElementById('ixen-lyrics-btn');
+var lyrPanel=document.getElementById('ixen-lyrics-panel');
+var lyrHead=document.getElementById('ixen-lyrics-head');
+var lyrTxt=document.getElementById('ixen-lyrics-text');
+var trkBtn=document.getElementById('ixen-tracks-btn');
+var trkPanel=document.getElementById('ixen-tracklist-panel');
+var overlay=document.getElementById('ixen-autoplay-overlay');
+var idx=0,playing=false;
+
+function fmt(s){
+  if(!s||isNaN(s))return'0:00';
+  var m=Math.floor(s/60),ss=Math.floor(s%60);
+  return m+':'+(ss<10?'0':'')+ss;
+}
+
+function loadIdx(i,autoplay){
+  idx=i;
+  var t=T[i];
+  au.src='./'+t.filename;
+  ptitle.textContent=t.title;
+  if(lyrHead)lyrHead.textContent=t.title;
+  if(lyrTxt)lyrTxt.textContent=t.lyrics||'(instrumental)';
+  pfill.style.width='0%';
+  if(ptime)ptime.textContent='';
+  document.querySelectorAll('.ixen-track-item').forEach(function(el,j){
+    el.classList.toggle('active',j===i);
+  });
+  if(autoplay)doPlay();
+}
+
+function doPlay(){
+  au.play().then(function(){
+    playing=true;playBtn.textContent='⏸';
+    if(overlay)overlay.style.display='none';
+  }).catch(function(){
+    playing=false;playBtn.textContent='▶';
+    if(overlay)overlay.style.display='flex';
+  });
+}
+
+function doPause(){
+  au.pause();playing=false;playBtn.textContent='▶';
+}
+
+playBtn.addEventListener('click',function(){ au.paused?doPlay():doPause(); });
+prevBtn.addEventListener('click',function(){ loadIdx((idx-1+T.length)%T.length,playing); });
+nextBtn.addEventListener('click',function(){ loadIdx((idx+1)%T.length,playing); });
+
+au.addEventListener('ended',function(){
+  if(T.length>1){loadIdx((idx+1)%T.length,true);}
+  else{playing=false;playBtn.textContent='▶';}
+});
+au.addEventListener('timeupdate',function(){
+  if(au.duration){
+    pfill.style.width=(au.currentTime/au.duration*100)+'%';
+    if(ptime)ptime.textContent=fmt(au.currentTime)+' / '+fmt(au.duration);
+  }
+});
+pbar.addEventListener('click',function(e){
+  if(!au.duration)return;
+  var r=pbar.getBoundingClientRect();
+  au.currentTime=(e.clientX-r.left)/r.width*au.duration;
+});
+if(vol)vol.addEventListener('input',function(){ au.volume=+vol.value; });
+lyrBtn.addEventListener('click',function(){
+  lyrPanel.hidden=!lyrPanel.hidden;
+  if(trkPanel)trkPanel.hidden=true;
+});
+if(trkBtn)trkBtn.addEventListener('click',function(){
+  trkPanel.hidden=!trkPanel.hidden;
+  lyrPanel.hidden=true;
+});
+if(overlay)overlay.addEventListener('click',function(){
+  overlay.style.display='none';doPlay();
+});
+
+if(T.length>1){
+  T.forEach(function(t,i){
+    var b=document.createElement('button');
+    b.className='ixen-track-item';
+    b.textContent=(i+1)+'. '+t.title;
+    b.addEventListener('click',function(){
+      loadIdx(i,playing);
+      if(trkPanel)trkPanel.hidden=true;
+    });
+    if(trkPanel)trkPanel.appendChild(b);
+  });
+  if(trkBtn)trkBtn.hidden=false;
+}else{
+  if(trkBtn)trkBtn.hidden=true;
+}
+
+document.body.style.paddingBottom='4.5rem';
+loadIdx(0,false);
+doPlay();
+})();
+`;
+
 function formatTimestamp(iso: string): string {
   // "2026-06-15T22:28:00.000Z" → "20260615-22:28"
   return iso.slice(0, 10).replace(/-/g, "") + "-" + iso.slice(11, 16);
+}
+
+function renderMusicPlayer(tracks: MusicTrack[]): string {
+  // Prevent </script> injection in the JSON data island
+  const safeJson = JSON.stringify(tracks).replace(
+    /<\/script>/gi,
+    "<\\/script>",
+  );
+  return `
+<script type="application/json" id="ixen-tracks-data">${safeJson}</script>
+<div id="ixen-autoplay-overlay" style="display:none">
+  <div class="ixen-play-prompt">
+    <span class="ixen-play-icon">&#9654;</span>
+    <span class="ixen-play-label">click to play</span>
+  </div>
+</div>
+<div id="ixen-player">
+  <audio id="ixen-audio" preload="auto"></audio>
+  <div id="ixen-player-row">
+    <button class="ixen-pbtn" id="ixen-prev-btn" title="Previous">|&#9664;</button>
+    <button class="ixen-pbtn" id="ixen-play-btn" title="Play / Pause">&#9654;</button>
+    <button class="ixen-pbtn" id="ixen-next-btn" title="Next">&#9654;|</button>
+    <span id="ixen-ptitle">&#8212;</span>
+    <span id="ixen-ptime"></span>
+    <input type="range" id="ixen-vol" min="0" max="1" step="0.05" value="1" title="Volume">
+    <button class="ixen-pbtn" id="ixen-lyrics-btn" title="Show / hide lyrics">&#9834;</button>
+    <button class="ixen-pbtn" id="ixen-tracks-btn" title="Track list">&#8801;</button>
+  </div>
+  <div id="ixen-pbar"><div id="ixen-pfill"></div></div>
+</div>
+<div id="ixen-lyrics-panel" hidden>
+  <div class="ixen-lyrics-head" id="ixen-lyrics-head"></div>
+  <pre id="ixen-lyrics-text"></pre>
+</div>
+<div id="ixen-tracklist-panel" hidden></div>`;
 }
 
 function renderPage(page: IxenPage): string {
@@ -538,13 +792,19 @@ function renderPage(page: IxenPage): string {
   const credits = escapeHtml(page.credits ?? `txt by ${page.model}`);
   const when = escapeHtml(page.generatedAt.slice(0, 10));
   const footerTs = escapeHtml(formatTimestamp(page.generatedAt));
+  const tracks = page.musicTracks ?? [];
+  const playerCss = tracks.length > 0 ? MUSIC_PLAYER_CSS : "";
+  const playerHtml = tracks.length > 0 ? renderMusicPlayer(tracks) : "";
+  const playerJs = tracks.length > 0
+    ? `<script>${MUSIC_PLAYER_JS}</script>`
+    : "";
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${title}</title>
-<style>${PAGE_CSS}</style>
+<style>${PAGE_CSS}${playerCss}</style>
 </head>
 <body>
 <header>
@@ -556,6 +816,8 @@ ${page.content}
 </main>
 <footer>Generated with Swamp extension @alvagante/content-ixen ${footerTs}</footer>
 <script>${PAGE_JS}</script>
+${playerHtml}
+${playerJs}
 </body>
 </html>
 `;
@@ -598,9 +860,12 @@ async function storePage(
  * The page body alternates evocative first-person narration with realistic
  * commands and outputs (inline or in 2005-style pop-up windows), and can
  * embed modern media: zoomable images, video, audio, and PDFs from
- * caller-supplied URLs. The extension wraps the body in a self-contained
- * HTML shell with all CSS and JavaScript inlined — the output file opens
- * directly in any browser with no external dependencies.
+ * caller-supplied URLs. When music tracks are supplied (via musicTracks,
+ * or the convenience args musicFilename/musicTitle/musicLyrics), a
+ * self-contained fixed-bottom player is injected into the HTML shell —
+ * with autoplay, progress bar, volume, lyrics panel, and multi-track
+ * switching. The output file opens directly in any browser with no
+ * external dependencies.
  *
  * Supports Anthropic's Messages API and any OpenAI-compatible endpoint
  * (Ollama, vLLM, Groq, Together, OpenRouter, etc.). Two entry points:
@@ -610,7 +875,7 @@ async function storePage(
  */
 export const model = {
   type: "@alvagante/content-ixen",
-  version: "2026.06.15.2",
+  version: "2026.06.16.1",
   upgrades: [
     {
       toVersion: "2026.06.15.1",
@@ -622,6 +887,12 @@ export const model = {
       toVersion: "2026.06.15.2",
       description:
         "Add mediaItems for multi-image support; float-left/float-right classes; poetic tone; updated footer",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.16.1",
+      description:
+        "Add music player: musicTracks, musicFilename, musicTitle, musicLyrics args; self-contained fixed-bottom player with autoplay fallback, lyrics panel, and multi-track support",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -651,7 +922,7 @@ export const model = {
   methods: {
     generate: {
       description:
-        "Generate a first-person narrated Ixen page on the given topic using a configured LLM endpoint",
+        "Generate a first-person narrated Ixen page on the given topic using a configured LLM endpoint. Supply musicTracks (or the convenience musicFilename/musicTitle/musicLyrics args) to embed a self-contained music player.",
       arguments: z.object({
         topic: z.string().min(1),
         narrator: z.string().min(1).optional(),
@@ -663,6 +934,10 @@ export const model = {
         model: z.string().default("claude-opus-4-8"),
         credits: z.string().optional(),
         outputDir: z.string().optional(),
+        musicTracks: z.array(MusicTrackSchema).optional(),
+        musicFilename: z.string().optional(),
+        musicTitle: z.string().optional(),
+        musicLyrics: z.string().nullish(),
       }),
       execute: async (
         args: {
@@ -676,6 +951,10 @@ export const model = {
           model: string;
           credits?: string;
           outputDir?: string;
+          musicTracks?: MusicTrack[];
+          musicFilename?: string;
+          musicTitle?: string;
+          musicLyrics?: string | null;
         },
         context: ModelContext,
       ) => {
@@ -746,6 +1025,12 @@ export const model = {
           args.topic,
         );
         const wordCount = countWords(content);
+        const musicTracks = resolveMusicTracks(
+          args.musicTracks,
+          args.musicFilename,
+          args.musicTitle,
+          args.musicLyrics,
+        );
 
         return await storePage(context, {
           title,
@@ -759,6 +1044,7 @@ export const model = {
           model: args.model,
           media: args.media,
           mediaItems: resolveMediaItems(args.media, args.mediaItems),
+          musicTracks: musicTracks.length > 0 ? musicTracks : undefined,
           credits: args.credits,
           generatedAt: new Date().toISOString(),
         }, args.outputDir);
@@ -766,7 +1052,7 @@ export const model = {
     },
     save: {
       description:
-        "Store an externally written Ixen page body (e.g. authored by the calling agent) without making any inference call — no API key or endpoint required",
+        "Store an externally written Ixen page body (e.g. authored by the calling agent) without making any inference call — no API key or endpoint required. Supply musicTracks (or the convenience musicFilename/musicTitle/musicLyrics args) to embed a music player.",
       arguments: z.object({
         content: z.string().min(1),
         title: z.string().optional(),
@@ -780,6 +1066,10 @@ export const model = {
         model: z.string().default("external"),
         credits: z.string().optional(),
         outputDir: z.string().optional(),
+        musicTracks: z.array(MusicTrackSchema).optional(),
+        musicFilename: z.string().optional(),
+        musicTitle: z.string().optional(),
+        musicLyrics: z.string().nullish(),
       }),
       execute: async (
         args: {
@@ -795,6 +1085,10 @@ export const model = {
           model: string;
           credits?: string;
           outputDir?: string;
+          musicTracks?: MusicTrack[];
+          musicFilename?: string;
+          musicTitle?: string;
+          musicLyrics?: string | null;
         },
         context: ModelContext,
       ) => {
@@ -804,6 +1098,12 @@ export const model = {
         const wordCount = countWords(content);
         const outputLength = args.outputLength ??
           deriveOutputLength(wordCount);
+        const musicTracks = resolveMusicTracks(
+          args.musicTracks,
+          args.musicFilename,
+          args.musicTitle,
+          args.musicLyrics,
+        );
 
         context.logger.info("Saving externally written Ixen page", {
           topic: args.topic,
@@ -823,6 +1123,7 @@ export const model = {
           model: args.model,
           media: args.media,
           mediaItems: resolveMediaItems(args.media, args.mediaItems),
+          musicTracks: musicTracks.length > 0 ? musicTracks : undefined,
           credits: args.credits,
           generatedAt: new Date().toISOString(),
         }, args.outputDir);
