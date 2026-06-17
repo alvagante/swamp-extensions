@@ -158,6 +158,19 @@ const MAX_TOKENS: Record<string, number> = {
   long: 16000,
 };
 
+function isTruncatedStopReason(stopReason: string): boolean {
+  const normalized = stopReason.toLowerCase();
+  return normalized === "max_tokens" || normalized === "length" ||
+    normalized.includes("max_token");
+}
+
+function hasDanglingHtmlTag(html: string): boolean {
+  const lastOpen = html.lastIndexOf("<");
+  if (lastOpen === -1) return false;
+  const lastClose = html.lastIndexOf(">");
+  return lastOpen > lastClose;
+}
+
 const DEFAULT_BASE_URL: Record<ApiFormat, string> = {
   "anthropic": "https://api.anthropic.com",
   "openai-compat": "http://localhost:11434/v1",
@@ -631,7 +644,7 @@ section.chapter { clear: both; margin: 3rem 0; }
 .lightbox img { max-width: 92vw; max-height: 92vh; }
 .ixen-extra-header {
   border-top: 1px solid #ddd; border-bottom: 1px solid #ddd;
-  margin: -1rem 0 2.4rem; padding: 0.8rem 0;
+  margin: 0 0 1.6rem; padding: 0.8rem 0;
 }
 .ixen-extra-footer {
   clear: both; border-top: 1px solid #ddd; margin: 3rem 0 0;
@@ -1114,11 +1127,11 @@ function renderPage(
 </head>
 <body>
 <!-- @alvagante/content-ixen -->
+${headerContent}
 <header>
   <h1>${title}</h1>
   <div class="credits">${provenance}${versionMenu}</div>
 </header>
-${headerContent}
 <main>
 ${page.content}
 </main>
@@ -1209,7 +1222,7 @@ async function storePage(
  */
 export const model = {
   type: "@alvagante/content-ixen",
-  version: "2026.06.17.3",
+  version: "2026.06.17.4",
   upgrades: [
     {
       toVersion: "2026.06.15.1",
@@ -1245,6 +1258,12 @@ export const model = {
       toVersion: "2026.06.17.3",
       description:
         "Add optional headerContent and footerContent HTML shell fragments, persist cheatsheetPath metadata, render cheatsheets inline at the bottom of the page, and add persona/personaDescription voice controls.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.17.4",
+      description:
+        "Render headerContent above the built-in Ixen title header and reject truncated or dangling-tag generated HTML before storing output.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -1433,11 +1452,21 @@ export const model = {
             `No text content in API response (stop_reason: ${stopReason})`,
           );
         }
+        if (isTruncatedStopReason(stopReason)) {
+          throw new Error(
+            `Inference API truncated Ixen page output (stop_reason: ${stopReason}, outputLength: ${args.outputLength}, maxTokens: ${maxTokens}). Retry with outputLength=long or a model/context limit that can complete the page.`,
+          );
+        }
 
         const { title, body: content } = splitTitleAndBody(
           rawContent,
           args.topic,
         );
+        if (hasDanglingHtmlTag(content)) {
+          throw new Error(
+            "Inference API returned an incomplete Ixen HTML fragment ending inside a tag. Refusing to store a malformed page; retry generation.",
+          );
+        }
         const wordCount = countWords(content);
         const musicTracks = resolveMusicTracks(
           args.musicTracks,

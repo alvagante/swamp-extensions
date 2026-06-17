@@ -96,8 +96,8 @@ Deno.test("save rotates previous Ixen output and renders version menu", async ()
     "expected inline cheatsheet iframe",
   );
   assert(
-    current.indexOf("custom header") < current.indexOf("<main>"),
-    "expected custom header before main content",
+    current.indexOf("custom header") < current.indexOf("<header>"),
+    "expected custom header before built-in Ixen title header",
   );
   assert(
     current.indexOf("custom footer") > current.indexOf("cheatsheet.html"),
@@ -106,4 +106,69 @@ Deno.test("save rotates previous Ixen output and renders version menu", async ()
   assert(current.includes("ixen-version-select"), "expected version selector");
   assert(previous.includes("first"), "expected previous page to rotate");
   assert(oldImage.size === 3, "expected referenced media to rotate");
+});
+
+Deno.test("generate rejects truncated provider output before writing", async () => {
+  const originalFetch = globalThis.fetch;
+  let writeCount = 0;
+  globalThis.fetch = (() =>
+    Promise.resolve({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          choices: [{
+            message: {
+              content: "Broken Ixen\n\n<section><ul><li>PV: modified guest",
+            },
+            finish_reason: "length",
+          }],
+        }),
+    } as Response)) as typeof fetch;
+
+  const context = {
+    globalArgs: { apiFormat: "openai-compat" as const },
+    writeResource: () => {
+      writeCount++;
+      return Promise.resolve({});
+    },
+    createFileWriter: () => ({
+      writeText: () => {
+        writeCount++;
+        return Promise.resolve({});
+      },
+    }),
+    logger: {
+      info: () => {},
+      error: () => {},
+    },
+  };
+
+  try {
+    const generate = model.methods.generate.execute;
+    let error: unknown;
+    try {
+      await generate(
+        {
+          topic: "Broken",
+          skillLevel: "intermediate",
+          outputLength: "medium",
+          model: "local",
+          persona: "neutral",
+          versionOutput: false,
+        },
+        context,
+      );
+    } catch (caught) {
+      error = caught;
+    }
+
+    assert(error instanceof Error, "expected generate to throw");
+    assert(
+      error.message.includes("truncated Ixen page output"),
+      "expected truncated output error",
+    );
+    assert(writeCount === 0, "expected no writes after truncated output");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });
