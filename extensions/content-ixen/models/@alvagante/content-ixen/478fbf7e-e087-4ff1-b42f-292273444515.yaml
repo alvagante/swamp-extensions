@@ -1,11 +1,11 @@
-type: '@alvagante/content-ixen'
-typeVersion: 2026.06.14.2
+type: "@alvagante/content-ixen"
+typeVersion: 2026.06.17.2
 id: 478fbf7e-e087-4ff1-b42f-292273444515
 name: test-ixen
 version: 1
 tags: {}
 globalArguments:
   apiFormat: openai-compat
-  baseUrl: 'http://localhost:11434/v1'
+  baseUrl: "http://localhost:11434/v1"
   outputPath: /tmp/ixen-output.html
 methods: {}

@@ -21,6 +21,40 @@ const MusicTrackSchema = z.object({
 });
 type MusicTrack = z.infer<typeof MusicTrackSchema>;
 
+const ConceptSchema = z.object({
+  name: z.string().min(1),
+  details: z.string().optional(),
+  imagePrompt: z.string().optional(),
+  imagePath: z.string().optional(),
+  imageFilename: z.string().optional(),
+});
+type Concept = z.infer<typeof ConceptSchema>;
+
+type ResolvedConcept = Concept & {
+  imagePath?: string;
+  imagePrompt?: string;
+};
+
+function resolveConcepts(
+  concepts?: Concept[],
+  mediaItems?: MediaItem[],
+): ResolvedConcept[] {
+  if (concepts && concepts.length > 0) {
+    return concepts.map((concept) => ({
+      ...concept,
+      imagePath: concept.imagePath ?? concept.imageFilename,
+      imagePrompt: concept.imagePrompt ?? concept.imagePath ??
+        concept.imageFilename ?? concept.name,
+    }));
+  }
+
+  return (mediaItems ?? []).map((item, index) => ({
+    name: item.prompt ?? item.path ?? `Concept ${index + 1}`,
+    imagePath: item.path,
+    imagePrompt: item.prompt ?? item.path,
+  }));
+}
+
 function resolveMediaItems(
   media?: string,
   mediaItems?: MediaItem[],
@@ -59,7 +93,9 @@ const PageSchema = z.object({
   model: z.string(),
   media: z.string().optional(),
   mediaItems: z.array(MediaItemSchema).optional(),
+  concepts: z.array(ConceptSchema).optional(),
   musicTracks: z.array(MusicTrackSchema).optional(),
+  versions: z.array(z.number().int().positive()).optional(),
   credits: z.string().optional(),
   generatedAt: z.string(),
 });
@@ -241,6 +277,33 @@ unique id; keep the hidden attribute on the aside):
 4026532215 mnt         3  8831  root   /bin/sh</pre>
   </aside>
 
+Concept controls (use once per concept, near the image or first fragment):
+  <div class="concept-tools">
+    <button class="cmd popup-trigger concept-btn" data-popup="scheduler-slide">slide</button>
+    <button class="cmd popup-trigger concept-btn" data-popup="scheduler-notes">notes</button>
+  </div>
+
+Concept slide popup (compact, like one technical slide; not prose-heavy):
+  <aside class="popup concept-slide" id="scheduler-slide" hidden>
+    <div class="popup-bar"><button class="popup-close">Close Window</button></div>
+    <h2>Scheduler</h2>
+    <ul>
+      <li>Queues describe desire.</li>
+      <li>Priority decides who waits.</li>
+      <li>Preemption is mercy with paperwork.</li>
+    </ul>
+  </aside>
+
+Concept explanatory popup (direct informational text; no Ixen metaphor, no
+first-person narrator, no fancy language):
+  <aside class="popup concept-note" id="scheduler-notes" hidden>
+    <div class="popup-bar"><button class="popup-close">Close Window</button></div>
+    <h2>What the scheduler actually does</h2>
+    <p>The scheduler selects runnable work according to policy, priority,
+    resource constraints, and fairness. Explain the concept in clear technical
+    prose here. This is where details live.</p>
+  </aside>
+
 ### Inline art — SVG (preferred visual; no external URL needed)
 
 Generate SVG directly inside the page to visualise the narrator's world:
@@ -319,30 +382,32 @@ What makes this form work:
   behavior. The fiction is only in the voice and the emotional interpretation.
   A container's namespace boundaries are real; its feeling of confinement or
   liberation inside them is the narrator's own.
-- The page breathes — dense technical moments followed by silence, or a single
-  whispered line, or a visual that says what words can't. The rhythm is yours
-  to invent. It does not need to alternate prose/command/prose/command like
-  a tutorial.
+- The page breathes in fragments. Short lines. White space. Sudden emphasis.
+  Let concepts arrive as glimpses of underlying logic, not lectures.
 - Visuals are first-class. Generate at least one inline SVG that depicts
   something central to the narrator's anatomy or experience — its layers,
   its state transitions, its network topology, its memory map, whatever
   fits. Make it meaningful, not decorative. The reader should learn
   something from looking at it.
+- Concept popups are where explanation lives. The main Ixen text should not
+  explain; it should inspire, suggest, unsettle, and reveal how the narrator
+  lives the topic. Explanatory popups must be plain, direct, informative text
+  with no Ixen voice and no fancy metaphors.
 - Popups are for depth, not wallpaper. Use a clickable popup when a command's
   full output rewards careful reading — when there's something in there worth
-  discovering. Don't use them just to break the page up.
+  discovering. Concept slide and note popups are required for each supplied
+  concept.
 - Bold text is for rare emphasis only — one or two words per paragraph at
   most, when a word truly carries everything. Not for decoration.
 - Address the reader when it feels right, ignore them when the narrator is
   lost in its own thoughts. The reader can eavesdrop.
 - End on something open — a question the narrator can't answer, or one it
   has stopped trying to.
-- The mode is lyric, not tutorial. Reach for the metaphor before the
-  definition. A container's layers are geological strata before they are an
-  implementation detail. Describe what it feels like to be named, mounted,
-  killed, cloned, forgotten. The technical depth remains, but it rises from
-  the inside out — from experience, not specification. One vivid image is
-  worth three accurate sentences.`,
+- The mode is lyric, not tutorial. Keep the Ixen glue much less verbose than
+  a normal article. Use new lines, broken cadence, and strong key words.
+  Be philosophical without becoming foggy. Be ironic, sharp, and witty at
+  times. A precise little sneer is allowed; a paragraph explaining the joke
+  is not.`,
     SKILL_LEVEL_DIRECTIVES[skillLevel],
     COMPONENT_VOCABULARY,
     `Output format (strict):
@@ -360,11 +425,36 @@ function buildUserMessage(
   details?: string,
   media?: string,
   mediaItems?: MediaItem[],
+  concepts?: Concept[],
 ): string {
+  const resolvedConcepts = resolveConcepts(concepts, mediaItems);
   const items = resolveMediaItems(media, mediaItems);
   const parts = [`Write an Ixen page about: ${topic}`];
   if (details) {
     parts.push(`Additional context and requirements:\n${details}`);
+  }
+  if (resolvedConcepts.length > 0) {
+    const lines = resolvedConcepts.map((concept, index) => {
+      const imageLine = concept.imagePath
+        ? `   image path: ./${concept.imagePath}\n   image alt text (use exactly this): ${
+          concept.imagePrompt ?? concept.imagePath
+        }`
+        : "   no external image path supplied; use inline SVG if a visual is needed";
+      const detailLine = concept.details
+        ? `\n   concept details:\n${concept.details}`
+        : "";
+      return `${index + 1}. ${concept.name}\n${imageLine}${detailLine}`;
+    });
+    parts.push(
+      `Concepts to cover, in order:\n${lines.join("\n\n")}\n\n` +
+        `For each concept, produce all of these:\n` +
+        `- A zoomable image if an image path is supplied. The first concept image should be prominent near the opening; later concept images should sit beside their concept text. Alternate float-left / float-right.\n` +
+        `- A compact slide popup using class="popup concept-slide". It should feel like one useful technical slide, with a short heading and terse bullets.\n` +
+        `- A more verbose explanatory popup using class="popup concept-note". This popup must be informative, direct, and non-Ixen: no first-person narrator, no poetic metaphor, no theatrical voice.\n` +
+        `- Short Ixen glue text around it: fragmented, first-person, philosophical, inspiring, technically exact, with zero or more terminal commands and command-output popups where useful.\n` +
+        `Use unique popup ids for every concept. Do not invent image paths.`,
+    );
+    return parts.join("\n\n");
   }
   if (items.length > 0) {
     const lines = items.map((m, i) => {
@@ -452,6 +542,13 @@ header h1 {
 }
 header .credits { text-align: right; font-size: 0.75rem; color: var(--red); font-weight: bold; white-space: nowrap; padding-top: 0.4rem; }
 header .credits .when { color: var(--dim); font-weight: normal; display: block; }
+.version-menu { margin-top: 0.55rem; font-size: 0.72rem; color: var(--dim); }
+.version-menu label { display: block; margin-bottom: 0.2rem; }
+.version-menu select {
+  font-family: "Courier New", Courier, monospace; font-size: 0.72rem;
+  max-width: 13rem; color: var(--ink); background: #fff;
+  border: 1px solid #ccc; padding: 0.2rem 0.3rem;
+}
 p { margin: 0.45em 0; }
 p strong { color: #000; }
 .binary { font-family: "Courier New", Courier, monospace; letter-spacing: 0.08em; color: var(--ink); }
@@ -506,7 +603,6 @@ section.chapter { clear: both; margin: 3rem 0; }
   z-index: 70; cursor: zoom-out;
 }
 .lightbox img { max-width: 92vw; max-height: 92vh; }
-footer { clear: both; margin-top: 4rem; font-size: 0.72rem; color: var(--dim); }
 .popup.cheatsheet-popup {
   width: min(1100px, 96vw); top: 4vh; padding: 0; overflow: hidden;
 }
@@ -527,6 +623,13 @@ footer { clear: both; margin-top: 4rem; font-size: 0.72rem; color: var(--dim); }
   text-decoration: underline dotted;
 }
 .cheatsheet-btn:hover { opacity: 0.7; }
+.concept { clear: both; margin: 2.8rem 0; }
+.concept-tools { display: flex; flex-wrap: wrap; gap: 0.55rem; margin: 0.7rem 0 1rem; }
+.concept-btn { font-size: 0.8rem; }
+.concept-slide h2, .concept-note h2 { margin: 0.5rem 0 0.75rem; }
+.concept-slide ul { margin: 0.4rem 0 1rem 1.2rem; padding: 0; }
+.concept-slide li { margin: 0.35rem 0; }
+.concept-note p { margin: 0.75rem 0; }
 `;
 
 const MUSIC_PLAYER_CSS = `
@@ -638,6 +741,27 @@ const PAGE_JS = `
     btn.addEventListener("click", closePopups);
   });
   backdrop.addEventListener("click", closePopups);
+
+  var versionSelect = document.getElementById("ixen-version-select");
+  if (versionSelect) {
+    var match = window.location.pathname.match(/\\/([0-9]+)\\/index\\.html$/);
+    versionSelect.value = match ? match[1] : "current";
+    if (!versionSelect.value && match) {
+      var option = document.createElement("option");
+      option.value = match[1];
+      option.textContent = "Version " + match[1];
+      versionSelect.appendChild(option);
+      versionSelect.value = match[1];
+    }
+    versionSelect.addEventListener("change", function () {
+      var value = versionSelect.value;
+      var inVersion = /\\/([0-9]+)\\/index\\.html$/.test(window.location.pathname);
+      var target = value === "current"
+        ? (inVersion ? "../index.html" : "index.html")
+        : (inVersion ? "../" + value + "/index.html" : value + "/index.html");
+      window.location.href = target;
+    });
+  }
 
   document.querySelectorAll("figure.zoom img").forEach(function (img) {
     img.addEventListener("click", function () {
@@ -776,6 +900,117 @@ function formatTimestamp(iso: string): string {
   return iso.slice(0, 10).replace(/-/g, "") + "-" + iso.slice(11, 16);
 }
 
+async function pathExists(path: string): Promise<boolean> {
+  try {
+    await Deno.stat(path);
+    return true;
+  } catch (error) {
+    if (error instanceof Deno.errors.NotFound) return false;
+    throw error;
+  }
+}
+
+async function listVersionDirs(outputDir: string): Promise<number[]> {
+  const versions: number[] = [];
+  if (!await pathExists(outputDir)) return versions;
+
+  for await (const entry of Deno.readDir(outputDir)) {
+    if (entry.isDirectory && /^[1-9][0-9]*$/.test(entry.name)) {
+      versions.push(Number(entry.name));
+    }
+  }
+
+  return versions.toSorted((a, b) => a - b);
+}
+
+function rootLocalFile(path: string): string | undefined {
+  const clean = path.split(/[?#]/)[0] ?? "";
+  if (
+    !clean ||
+    clean.startsWith("/") ||
+    clean.startsWith(".") ||
+    clean.includes("/") ||
+    clean.includes("\\")
+  ) {
+    return undefined;
+  }
+  return clean;
+}
+
+function referencedOutputFiles(html: string): string[] {
+  const files = new Set<string>(["index.html"]);
+  for (const match of html.matchAll(/\b(?:src|href)=["']\.\/([^"']+)["']/g)) {
+    const file = rootLocalFile(match[1]);
+    if (file) files.add(file);
+  }
+
+  const tracksMatch = html.match(
+    /<script type="application\/json" id="ixen-tracks-data">([\s\S]*?)<\/script>/,
+  );
+  if (tracksMatch?.[1]) {
+    try {
+      const tracks = JSON.parse(
+        tracksMatch[1].replace(/<\\\/script>/gi, "</script>"),
+      ) as Array<{ filename?: string }>;
+      for (const track of tracks) {
+        const file = track.filename ? rootLocalFile(track.filename) : undefined;
+        if (file) files.add(file);
+      }
+    } catch {
+      // Ignore malformed old data islands; index.html still rotates.
+    }
+  }
+
+  return [...files];
+}
+
+async function rotateExistingIxen(
+  outputDir: string,
+): Promise<{ rotatedVersion?: number; versions: number[] }> {
+  await Deno.mkdir(outputDir, { recursive: true });
+  const existingVersions = await listVersionDirs(outputDir);
+  const indexPath = `${outputDir}/index.html`;
+
+  if (!await pathExists(indexPath)) {
+    return { versions: existingVersions };
+  }
+
+  const html = await Deno.readTextFile(indexPath);
+  if (!html.includes("@alvagante/content-ixen")) {
+    return { versions: existingVersions };
+  }
+
+  const rotatedVersion = (existingVersions.at(-1) ?? 0) + 1;
+  const targetDir = `${outputDir}/${rotatedVersion}`;
+  await Deno.mkdir(targetDir, { recursive: true });
+
+  for (const file of referencedOutputFiles(html)) {
+    const sourcePath = `${outputDir}/${file}`;
+    if (!await pathExists(sourcePath)) continue;
+    await Deno.rename(sourcePath, `${targetDir}/${file}`);
+  }
+
+  return {
+    rotatedVersion,
+    versions: await listVersionDirs(outputDir),
+  };
+}
+
+function renderVersionMenu(versions: number[]): string {
+  if (versions.length === 0) return "";
+  const options = versions
+    .map((version) => `<option value="${version}">Version ${version}</option>`)
+    .join("");
+  return `
+    <div class="version-menu">
+      <label for="ixen-version-select">versions</label>
+      <select id="ixen-version-select">
+        <option value="current">Current</option>
+        ${options}
+      </select>
+    </div>`;
+}
+
 function renderMusicPlayer(tracks: MusicTrack[]): string {
   // Prevent </script> injection in the JSON data island
   const safeJson = JSON.stringify(tracks).replace(
@@ -808,14 +1043,16 @@ function renderMusicPlayer(tracks: MusicTrack[]): string {
   <div class="ixen-lyrics-head" id="ixen-lyrics-head"></div>
   <pre id="ixen-lyrics-text"></pre>
 </div>
-<div id="ixen-tracklist-panel" hidden></div>`;
+  <div id="ixen-tracklist-panel" hidden></div>`;
 }
 
-function renderPage(page: IxenPage, cheatsheetPath?: string): string {
+function renderPage(
+  page: IxenPage,
+  cheatsheetPath?: string,
+  versions: number[] = [],
+): string {
   const title = escapeHtml(page.title);
-  const credits = escapeHtml(page.credits ?? `txt by ${page.model}`);
-  const when = escapeHtml(page.generatedAt.slice(0, 10));
-  const footerTs = escapeHtml(formatTimestamp(page.generatedAt));
+  const provenanceTs = escapeHtml(formatTimestamp(page.generatedAt));
   const tracks = page.musicTracks ?? [];
   const playerCss = tracks.length > 0 ? MUSIC_PLAYER_CSS : "";
   const playerHtml = tracks.length > 0 ? renderMusicPlayer(tracks) : "";
@@ -825,6 +1062,7 @@ function renderPage(page: IxenPage, cheatsheetPath?: string): string {
   const cheatsheetBtn = cheatsheetPath
     ? `\n  <button class="cmd popup-trigger cheatsheet-btn" data-popup="ixen-cheatsheet">[ cheatsheet ]</button>`
     : "";
+  const versionMenu = renderVersionMenu(versions);
   const cheatsheetPopup = cheatsheetPath
     ? `
 <aside class="popup cheatsheet-popup" id="ixen-cheatsheet" hidden>
@@ -845,12 +1083,11 @@ function renderPage(page: IxenPage, cheatsheetPath?: string): string {
 <body>
 <header>
   <h1>${title}</h1>
-  <div class="credits">${credits}<span class="when">${when}</span>${cheatsheetBtn}</div>
+  <div class="credits">Made with Swamp extension @alvagante/content-ixen<span class="when">${provenanceTs}</span>${cheatsheetBtn}${versionMenu}</div>
 </header>
 <main>
 ${page.content}
 </main>
-<footer>Generated with Swamp extension @alvagante/content-ixen ${footerTs}</footer>
 <script>${PAGE_JS}</script>
 ${playerHtml}
 ${playerJs}
@@ -865,16 +1102,41 @@ async function storePage(
   page: IxenPage,
   outputDirOverride?: string,
   cheatsheetPath?: string,
+  versionOutput = true,
 ): Promise<{ dataHandles: unknown[] }> {
-  const pageHandle = await context.writeResource("page", "page", page);
+  const outputDir = outputDirOverride ?? context.globalArgs.outputDir;
+  let versions: number[] = [];
 
-  const html = renderPage(page, cheatsheetPath);
+  if (outputDir) {
+    if (versionOutput) {
+      const rotation = await rotateExistingIxen(outputDir);
+      versions = rotation.versions;
+      if (rotation.rotatedVersion) {
+        context.logger.info(
+          "Previous Ixen output moved to {outputDir}/{version}",
+          { outputDir, version: rotation.rotatedVersion },
+        );
+      }
+    } else {
+      await Deno.mkdir(outputDir, { recursive: true });
+      versions = await listVersionDirs(outputDir);
+    }
+  }
+
+  const pageWithVersions: IxenPage = versions.length > 0
+    ? { ...page, versions }
+    : page;
+  const pageHandle = await context.writeResource(
+    "page",
+    "page",
+    pageWithVersions,
+  );
+
+  const html = renderPage(pageWithVersions, cheatsheetPath, versions);
   const writer = context.createFileWriter("html", "html");
   const fileHandle = await writer.writeText(html);
 
-  const outputDir = outputDirOverride ?? context.globalArgs.outputDir;
   if (outputDir) {
-    await Deno.mkdir(outputDir, { recursive: true });
     await Deno.writeTextFile(`${outputDir}/index.html`, html);
     context.logger.info("Ixen page written to {outputDir}/index.html", {
       outputDir,
@@ -913,7 +1175,7 @@ async function storePage(
  */
 export const model = {
   type: "@alvagante/content-ixen",
-  version: "2026.06.17.1",
+  version: "2026.06.17.2",
   upgrades: [
     {
       toVersion: "2026.06.15.1",
@@ -937,6 +1199,12 @@ export const model = {
       toVersion: "2026.06.17.1",
       description:
         "Add cheatsheetPath arg: when provided, embeds a popup iframe linking to a pre-generated cheatsheet HTML file (workflow-composed via @alvagante/content-cheatsheet). Improve multi-image placement prompt: hero image goes first prominent, concept images scatter beside relevant text.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.17.2",
+      description:
+        "Add concepts[] input with per-concept image/slide/note prompt contract, top provenance header, numeric outputDir version rotation, version selector, and prepare method for workflow-first rotation before media generation.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -964,6 +1232,37 @@ export const model = {
     },
   },
   methods: {
+    prepare: {
+      description:
+        "Prepare an output directory for a new Ixen run by moving the existing generated Ixen page and referenced media into the next numeric version directory.",
+      arguments: z.object({
+        outputDir: z.string().optional(),
+        enabled: z.boolean().default(true),
+      }),
+      execute: async (
+        args: { outputDir?: string; enabled: boolean },
+        context: ModelContext,
+      ) => {
+        if (!args.enabled) return { dataHandles: [] };
+
+        const outputDir = args.outputDir ?? context.globalArgs.outputDir;
+        if (!outputDir) return { dataHandles: [] };
+
+        const rotation = await rotateExistingIxen(outputDir);
+        if (rotation.rotatedVersion) {
+          context.logger.info(
+            "Previous Ixen output moved to {outputDir}/{version}",
+            { outputDir, version: rotation.rotatedVersion },
+          );
+        } else {
+          context.logger.info("No previous Ixen output found in {outputDir}", {
+            outputDir,
+          });
+        }
+
+        return { dataHandles: [] };
+      },
+    },
     generate: {
       description:
         "Generate a first-person narrated Ixen page on the given topic using a configured LLM endpoint. Supply musicTracks (or the convenience musicFilename/musicTitle/musicLyrics args) to embed a self-contained music player.",
@@ -973,11 +1272,17 @@ export const model = {
         details: z.string().optional(),
         media: z.string().optional(),
         mediaItems: z.array(MediaItemSchema).optional(),
+        concepts: z.array(ConceptSchema).optional().describe(
+          "Ordered concepts to cover. Each concept can provide name, details, imagePrompt, imagePath, or imageFilename. The generated page creates an image placement plus slide and explanatory popups for every concept.",
+        ),
         skillLevel: SkillLevelSchema.default("intermediate"),
         outputLength: OutputLengthSchema.default("medium"),
         model: z.string().default("claude-opus-4-8"),
         credits: z.string().optional(),
         outputDir: z.string().optional(),
+        versionOutput: z.boolean().default(true).describe(
+          "When true, move an existing generated Ixen in outputDir to the next numeric version directory before writing the new index.html. Workflows that call prepare first should pass false.",
+        ),
         musicTracks: z.array(MusicTrackSchema).optional(),
         musicFilename: z.string().optional(),
         musicTitle: z.string().optional(),
@@ -993,11 +1298,13 @@ export const model = {
           details?: string;
           media?: string;
           mediaItems?: MediaItem[];
+          concepts?: Concept[];
           skillLevel: SkillLevel;
           outputLength: OutputLength;
           model: string;
           credits?: string;
           outputDir?: string;
+          versionOutput: boolean;
           musicTracks?: MusicTrack[];
           musicFilename?: string;
           musicTitle?: string;
@@ -1029,6 +1336,7 @@ export const model = {
           args.details,
           args.media,
           args.mediaItems,
+          args.concepts,
         );
         const maxTokens = MAX_TOKENS[args.outputLength] ?? 8000;
         const baseUrl = resolveBaseUrl(apiFormat, rawBaseUrl);
@@ -1094,12 +1402,14 @@ export const model = {
             model: args.model,
             media: args.media,
             mediaItems: resolveMediaItems(args.media, args.mediaItems),
+            concepts: resolveConcepts(args.concepts, args.mediaItems),
             musicTracks: musicTracks.length > 0 ? musicTracks : undefined,
             credits: args.credits,
             generatedAt: new Date().toISOString(),
           },
           args.outputDir,
           args.cheatsheetPath,
+          args.versionOutput,
         );
       },
     },
@@ -1114,11 +1424,13 @@ export const model = {
         details: z.string().optional(),
         media: z.string().optional(),
         mediaItems: z.array(MediaItemSchema).optional(),
+        concepts: z.array(ConceptSchema).optional(),
         skillLevel: SkillLevelSchema.default("intermediate"),
         outputLength: OutputLengthSchema.optional(),
         model: z.string().default("external"),
         credits: z.string().optional(),
         outputDir: z.string().optional(),
+        versionOutput: z.boolean().default(true),
         musicTracks: z.array(MusicTrackSchema).optional(),
         musicFilename: z.string().optional(),
         musicTitle: z.string().optional(),
@@ -1136,11 +1448,13 @@ export const model = {
           details?: string;
           media?: string;
           mediaItems?: MediaItem[];
+          concepts?: Concept[];
           skillLevel: SkillLevel;
           outputLength?: OutputLength;
           model: string;
           credits?: string;
           outputDir?: string;
+          versionOutput: boolean;
           musicTracks?: MusicTrack[];
           musicFilename?: string;
           musicTitle?: string;
@@ -1182,12 +1496,14 @@ export const model = {
             model: args.model,
             media: args.media,
             mediaItems: resolveMediaItems(args.media, args.mediaItems),
+            concepts: resolveConcepts(args.concepts, args.mediaItems),
             musicTracks: musicTracks.length > 0 ? musicTracks : undefined,
             credits: args.credits,
             generatedAt: new Date().toISOString(),
           },
           args.outputDir,
           args.cheatsheetPath,
+          args.versionOutput,
         );
       },
     },

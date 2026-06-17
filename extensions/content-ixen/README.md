@@ -4,9 +4,9 @@ Generate **Ixen pages** — self-narrated, mixed-media web pages in the traditio
 
 > *I am conscious of what I do, how I perceive, think, act, behave in order to drive this ... life.*
 
-An Ixen page alternates short, evocative, philosophical lines with concrete technical substance: realistic commands and outputs shown inline or in 2005-style pop-up windows. Since this is 2026 and no longer 2006, pages can also embed modern media — zoomable images, video, audio, and PDFs — always woven into the first-person narration. The narrator adapts to the topic: a hypervisor, an AI agent, a container, a git repository, a Kubernetes cluster... whatever is involved tells its own story.
+An Ixen page alternates short, evocative, philosophical fragments with concrete technical substance: realistic commands and outputs shown inline or in 2005-style pop-up windows. Concept pages can also include one image, one compact slide popup, and one direct explanatory notes popup per configured concept. The main narrator voice inspires and implies; the popups carry the detailed explanation.
 
-The output is a **single self-contained HTML file** (CSS and JavaScript inlined) that opens directly in any browser.
+The output is a **single self-contained HTML file** (CSS and JavaScript inlined) that opens directly in any browser. When writing into an `outputDir`, existing generated Ixen output is rotated into numeric version directories (`1`, `2`, `3`, ...) before the new `index.html` is written.
 
 ## Installation
 
@@ -50,6 +50,7 @@ Global arguments (used by `generate` only — `save` needs none):
 | `apiFormat` | No                        | `anthropic`                    | `anthropic` or `openai-compat`           |
 | `apiKey`    | `generate` with Anthropic | —                              | API key; stored in vault, never logged   |
 | `baseUrl`   | No                        | Anthropic or `localhost:11434` | Override the inference endpoint base URL |
+| `outputDir` | No                        | —                              | Default directory for `index.html` and version rotation |
 
 ## Usage
 
@@ -60,7 +61,8 @@ swamp model method run my-ixen generate \
   --input topic="Life as a Kubernetes cluster" \
   --input narrator="a production Kubernetes cluster" \
   --input skillLevel=senior \
-  --input media="https://www.youtube.com/embed/dQw4w9WgXcQ — the day I was bootstrapped"
+  --input 'concepts:json=[{"name":"Scheduling","details":"Pod placement, predicates, scoring, preemption.","imagePrompt":"A precise technical diagram of Kubernetes scheduling queues","imageFilename":"scheduling.png"}]' \
+  --input outputDir=/tmp/ixen-site
 ```
 
 Arguments:
@@ -71,12 +73,27 @@ Arguments:
 | `narrator`     | No       | Who speaks (e.g. "a Xen host", "an AI agent") | Inferred from topic |
 | `details`      | No       | Extra context or constraints               | —                      |
 | `media`        | No       | Real media URLs to embed, one per line, optionally `URL — caption` | — |
+| `mediaItems`   | No       | Array of `{path,prompt}` image items       | —                      |
+| `concepts`     | No       | Ordered array of `{name,details,imagePrompt,imagePath,imageFilename}` | Derived from `mediaItems` |
 | `skillLevel`   | No       | `novice`, `intermediate`, `senior`, `guru` | `intermediate`         |
 | `outputLength` | No       | `short`, `medium`, `long`                  | `medium`               |
 | `model`        | No       | Any model ID                               | `claude-opus-4-8`      |
-| `credits`      | No       | Byline shown top-right (e.g. "txt by al")  | `txt by <model>`       |
+| `credits`      | No       | Optional metadata byline recorded in the `page` resource | —            |
+| `outputDir`    | No       | Directory path                             | Global `outputDir`     |
+| `versionOutput` | No      | `true` or `false`                          | `true`                 |
+| `cheatsheetPath` | No     | Relative HTML path within `outputDir`      | —                      |
 
 Media URLs are never invented: only URLs you pass via `media` are embedded. Supported media types: zoomable images, embedded video (use embed-friendly URLs, e.g. `youtube.com/embed/<id>`), audio, and PDFs.
+
+For workflow composition, call `prepare` before upstream media generators write into the shared `outputDir`, then call `generate` with `versionOutput=false`. That preserves the previous page and its referenced images/audio/cheatsheet before new files overwrite root filenames.
+
+### `prepare` — rotate an existing output directory
+
+```sh
+swamp model method run my-ixen prepare --input outputDir=/tmp/ixen-site
+```
+
+`prepare` moves an existing generated `index.html` and the root-local files it references into the next numeric subdirectory. It only rotates pages containing the `@alvagante/content-ixen` marker.
 
 ### `save` — agent-driven, keyless
 
@@ -105,10 +122,14 @@ Arguments:
 | `topic`        | Yes      | Any string                                      | —                       |
 | `details`      | No       | Extra context recorded as metadata              | —                       |
 | `media`        | No       | Media URLs recorded as metadata                 | —                       |
+| `mediaItems`   | No       | Array of `{path,prompt}` image items            | —                       |
+| `concepts`     | No       | Ordered array of concept metadata               | Derived from `mediaItems` |
 | `skillLevel`   | No       | `novice`, `intermediate`, `senior`, `guru`      | `intermediate`          |
 | `outputLength` | No       | `short`, `medium`, `long`                       | Derived from word count |
 | `model`        | No       | Identifier of whatever produced the content     | `external`              |
-| `credits`      | No       | Byline shown top-right                          | `txt by <model>`        |
+| `credits`      | No       | Optional metadata byline recorded in the `page` resource | —                       |
+| `outputDir`    | No       | Directory path                                  | Global `outputDir`      |
+| `versionOutput` | No      | Rotate previous generated output first          | `true`                  |
 
 The `content` body must use the component vocabulary below. Output is identical to `generate`: a `page` resource and an `html` file.
 
@@ -136,6 +157,9 @@ The page shell provides all CSS and JavaScript. Bodies (generated or saved) use 
 | Terminal line    | `<div class="term"><span class="host">zeus:~ $</span> <span class="cmd">uptime</span></div>` |
 | Inline output    | `<pre class="output">...</pre>`                                         |
 | Pop-up command   | `<button class="cmd popup-trigger" data-popup="id">cmd</button>` + `<aside class="popup" id="id" hidden>...<pre>...</pre></aside>` |
+| Concept controls | `<div class="concept-tools"><button class="cmd popup-trigger concept-btn" data-popup="id">slide</button>...</div>` |
+| Concept slide    | `<aside class="popup concept-slide" id="id" hidden>...terse slide content...</aside>` |
+| Concept notes    | `<aside class="popup concept-note" id="id" hidden>...direct explanatory text...</aside>` |
 | Zoomable image   | `<figure class="zoom"><img src="URL" alt=""><figcaption>...</figcaption></figure>` |
 | Video            | `<div class="media video"><iframe src="URL" allowfullscreen></iframe></div>` |
 | Audio            | `<div class="media audio"><audio controls src="URL"></audio></div>`     |

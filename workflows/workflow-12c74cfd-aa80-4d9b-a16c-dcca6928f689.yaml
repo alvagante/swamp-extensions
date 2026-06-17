@@ -1,21 +1,39 @@
 id: 12c74cfd-aa80-4d9b-a16c-dcca6928f689
 name: content-mini-site
-description: Generate a mini-site with AI images (hero + concept), a cheatsheet popup, a first-person narrated Ixen page, and a background music track. Requires models: my-image, my-cheatsheet, my-music, my-ixen.
-version: 3
+description: "Generate a mini-site with concept-driven AI images, a cheatsheet popup, a first-person narrated Ixen page, versioned previous output, and a background music track. Requires models: my-image, my-cheatsheet, my-music, my-ixen."
+version: 4
 inputs:
+  type: object
   properties:
     outputDir:
       type: string
-      description: Directory where all files (hero.png, concept.png, cheatsheet.html, audio, index.html) will be written
+      description: Directory where all current files and numeric previous-version subdirectories will be written
     topic:
       type: string
       description: Topic for the Ixen page, cheatsheet, and music
-    heroPrompt:
-      type: string
-      description: Image generation prompt for the hero image (floated large, opening of page)
-    conceptPrompt:
-      type: string
-      description: Image generation prompt for the concept image (floated beside relevant body text)
+    concepts:
+      type: array
+      minItems: 1
+      description: Ordered concepts for the Ixen page; each concept gets an image, slide popup, explanatory popup, and Ixen glue text
+      items:
+        type: object
+        properties:
+          name:
+            type: string
+            description: Concept label used by content-ixen
+          details:
+            type: string
+            description: Technical facts or boundaries for this concept
+          imagePrompt:
+            type: string
+            description: Prompt for the concept image
+          imageFilename:
+            type: string
+            description: Filename to write under outputDir and reference from content-ixen
+        required:
+          - name
+          - imagePrompt
+          - imageFilename
     style:
       type: string
       default: ixen-light
@@ -43,38 +61,49 @@ inputs:
   required:
     - outputDir
     - topic
-    - heroPrompt
-    - conceptPrompt
+    - concepts
 jobs:
-  - name: images
-    description: Generate hero and concept images (both use the same style)
+  - name: prepare
+    description: Move an existing generated Ixen output to the next numeric version directory before new media overwrites root files
     steps:
-      - name: hero
-        description: Generate hero image and write to outputDir as hero.png
+      - name: rotate
+        description: Rotate existing root Ixen artifacts into outputDir/1, outputDir/2, ...
         task:
           type: model_method
-          modelIdOrName: my-image
-          methodName: generate
+          modelType: "@alvagante/content-ixen"
+          modelName: my-ixen
+          methodName: prepare
           inputs:
-            prompt: ${{ inputs.heroPrompt }}
-            style: ${{ inputs.style }}
-            background: ${{ inputs.background }}
-            filename: hero.png
             outputDir: ${{ inputs.outputDir }}
-      - name: concept
-        description: Generate concept image and write to outputDir as concept.png
+            enabled: true
+  - name: images
+    description: Generate one image per configured concept
+    dependsOn:
+      - job: prepare
+        condition:
+          type: succeeded
+    steps:
+      - name: image-${{ self.concept.imageFilename }}
+        description: Generate concept image and write it to outputDir using the configured filename
+        forEach:
+          item: concept
+          in: ${{ inputs.concepts }}
         task:
           type: model_method
           modelIdOrName: my-image
           methodName: generate
           inputs:
-            prompt: ${{ inputs.conceptPrompt }}
+            prompt: ${{ self.concept.imagePrompt }}
             style: ${{ inputs.style }}
             background: ${{ inputs.background }}
-            filename: concept.png
+            filename: ${{ self.concept.imageFilename }}
             outputDir: ${{ inputs.outputDir }}
   - name: cheatsheet
     description: Generate cheatsheet HTML (my-cheatsheet must be an @alvagante/content-cheatsheet model instance)
+    dependsOn:
+      - job: prepare
+        condition:
+          type: succeeded
     steps:
       - name: generate
         description: Generate cheatsheet and write to outputDir as cheatsheet.html
@@ -90,6 +119,10 @@ jobs:
             outputDir: ${{ inputs.outputDir }}
   - name: music
     description: Generate background music track
+    dependsOn:
+      - job: prepare
+        condition:
+          type: succeeded
     steps:
       - name: track
         description: Generate song lyrics and audio, write to outputDir
@@ -119,18 +152,17 @@ jobs:
         description: Generate Ixen page and write to outputDir as index.html
         task:
           type: model_method
-          modelIdOrName: my-ixen
+          modelType: "@alvagante/content-ixen"
+          modelName: my-ixen
           methodName: generate
           inputs:
+            apiKey: ${{ vault.get(anthropic-keys, api-key) }}
             topic: ${{ inputs.topic }}
-            mediaItems:
-              - path: hero.png
-                prompt: ${{ inputs.heroPrompt }}
-              - path: concept.png
-                prompt: ${{ inputs.conceptPrompt }}
+            concepts: ${{ inputs.concepts }}
             skillLevel: ${{ inputs.skillLevel }}
             outputLength: ${{ inputs.outputLength }}
             outputDir: ${{ inputs.outputDir }}
+            versionOutput: false
             cheatsheetPath: cheatsheet.html
             musicFilename: ${{ data.latest("my-music", "song").attributes.filename }}
             musicTitle: ${{ data.latest("my-music", "song").attributes.title }}
