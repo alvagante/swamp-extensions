@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@alvagante/content-cheatsheet"
-version: "2026.06.17.2"
+version: "2026.06.17.3"
 description: "Generate dense, visually structured cheatsheets on any technical topic. Outputs print-to-PDF-ready HTML (Cmd-P → Save as PDF) or GitHub-flavoured Markdown. Configurable skill level (novice→guru), verbosity, and completeness. Uses Claude or any OpenAI-compatible endpoint, or stores agent-written content keylessly."
 repository: "https://github.com/alvagante/swamp-extensions"
 models:

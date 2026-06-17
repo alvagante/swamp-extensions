@@ -78,10 +78,14 @@ Arguments:
 | `skillLevel`   | No       | `novice`, `intermediate`, `senior`, `guru` | `intermediate`         |
 | `outputLength` | No       | `short`, `medium`, `long`                  | `medium`               |
 | `model`        | No       | Any model ID                               | `claude-opus-4-8`      |
-| `credits`      | No       | Optional metadata byline recorded in the `page` resource | —            |
+| `persona`      | No       | `neutral`, `alvabot`, `abnormalia`         | `neutral`              |
+| `personaDescription` | No | Custom voice directive overriding `persona` | —                     |
+| `credits`      | No       | Optional top-right byline before the timestamp | —            |
+| `headerContent` | No      | Raw HTML fragment rendered below the Ixen header | —                 |
+| `footerContent` | No      | Raw HTML fragment rendered after the body and cheatsheet | —           |
 | `outputDir`    | No       | Directory path                             | Global `outputDir`     |
 | `versionOutput` | No      | `true` or `false`                          | `true`                 |
-| `cheatsheetPath` | No     | Relative HTML path within `outputDir`      | —                      |
+| `cheatsheetPath` | No     | Relative HTML path embedded near the bottom of the page | —           |
 
 Media URLs are never invented: only URLs you pass via `media` are embedded. Supported media types: zoomable images, embedded video (use embed-friendly URLs, e.g. `youtube.com/embed/<id>`), audio, and PDFs.
 
@@ -127,9 +131,14 @@ Arguments:
 | `skillLevel`   | No       | `novice`, `intermediate`, `senior`, `guru`      | `intermediate`          |
 | `outputLength` | No       | `short`, `medium`, `long`                       | Derived from word count |
 | `model`        | No       | Identifier of whatever produced the content     | `external`              |
-| `credits`      | No       | Optional metadata byline recorded in the `page` resource | —                       |
+| `persona`      | No       | `neutral`, `alvabot`, `abnormalia`              | `neutral`               |
+| `personaDescription` | No | Custom voice directive overriding `persona`     | —                       |
+| `credits`      | No       | Optional top-right byline before the timestamp | —                       |
+| `headerContent` | No      | Raw HTML fragment rendered below the Ixen header | —                      |
+| `footerContent` | No      | Raw HTML fragment rendered after the body and cheatsheet | —                |
 | `outputDir`    | No       | Directory path                                  | Global `outputDir`      |
 | `versionOutput` | No      | Rotate previous generated output first          | `true`                  |
+| `cheatsheetPath` | No     | Relative HTML path embedded near the bottom of the page | —              |
 
 The `content` body must use the component vocabulary below. Output is identical to `generate`: a `page` resource and an `html` file.
 

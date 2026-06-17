@@ -736,7 +736,7 @@ function deriveTitle(
  */
 export const model = {
   type: "@alvagante/content-cheatsheet",
-  version: "2026.06.17.2",
+  version: "2026.06.17.3",
 
   globalArguments: z.object({
     apiFormat: ApiFormatSchema.default("anthropic"),
@@ -759,13 +759,13 @@ export const model = {
     html: {
       description:
         "Self-contained print-to-PDF-ready HTML cheatsheet (Cmd-P → Save as PDF)",
-      mimeType: "text/html",
+      contentType: "text/html",
       lifetime: "infinite" as const,
       garbageCollection: 20,
     },
     markdown: {
       description: "GitHub-flavoured Markdown cheatsheet",
-      mimeType: "text/markdown",
+      contentType: "text/markdown",
       lifetime: "infinite" as const,
       garbageCollection: 20,
     },

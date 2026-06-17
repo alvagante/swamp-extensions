@@ -7,9 +7,13 @@ function assert(condition: unknown, message: string): asserts condition {
 Deno.test("save rotates previous Ixen output and renders version menu", async () => {
   const outputDir = await Deno.makeTempDir({ prefix: "content-ixen-" });
   const writes: string[] = [];
+  const resources: unknown[] = [];
   const context = {
     globalArgs: { apiFormat: "openai-compat" as const },
-    writeResource: () => Promise.resolve({}),
+    writeResource: (_specName: string, _name: string, content: unknown) => {
+      resources.push(content);
+      return Promise.resolve({});
+    },
     createFileWriter: () => ({
       writeText: (text: string) => {
         writes.push(text);
@@ -32,6 +36,8 @@ Deno.test("save rotates previous Ixen output and renders version menu", async ()
       topic: "Smoke",
       skillLevel: "intermediate",
       model: "external",
+      persona: "neutral",
+      credits: "Custom credits",
       outputDir,
       versionOutput: true,
     },
@@ -46,8 +52,14 @@ Deno.test("save rotates previous Ixen output and renders version menu", async ()
       topic: "Smoke",
       skillLevel: "intermediate",
       model: "external",
+      persona: "abnormalia",
+      personaDescription: "Custom machine noir.",
+      credits: "Custom credits",
       outputDir,
       versionOutput: true,
+      headerContent: '<p class="shell-header">custom header</p>',
+      footerContent: '<p class="shell-footer">custom footer</p>',
+      cheatsheetPath: "cheatsheet.html",
     },
     context,
   );
@@ -57,9 +69,39 @@ Deno.test("save rotates previous Ixen output and renders version menu", async ()
   const oldImage = await Deno.stat(`${outputDir}/1/old.png`);
 
   assert(writes.length === 2, "expected both HTML writes to be recorded");
+  assert(resources.length === 2, "expected both page resources to be recorded");
   assert(
-    current.includes("Made with Swamp extension @alvagante/content-ixen"),
-    "expected top provenance",
+    (resources[1] as { persona?: string }).persona === "abnormalia",
+    "expected persona metadata to be stored",
+  );
+  assert(
+    (resources[1] as { personaDescription?: string }).personaDescription ===
+      "Custom machine noir.",
+    "expected persona description metadata to be stored",
+  );
+  assert(
+    current.includes('<div class="credits">Made by Custom credits - 20'),
+    "expected custom credits and timestamp in top-right provenance",
+  );
+  assert(
+    !current.includes(
+      '<div class="credits">Made with Swamp extension @alvagante/content-ixen',
+    ),
+    "expected custom credits to replace default top-right provenance",
+  );
+  assert(current.includes("custom header"), "expected custom header content");
+  assert(current.includes("custom footer"), "expected custom footer content");
+  assert(
+    current.includes('<iframe src="./cheatsheet.html"'),
+    "expected inline cheatsheet iframe",
+  );
+  assert(
+    current.indexOf("custom header") < current.indexOf("<main>"),
+    "expected custom header before main content",
+  );
+  assert(
+    current.indexOf("custom footer") > current.indexOf("cheatsheet.html"),
+    "expected custom footer after inline cheatsheet",
   );
   assert(current.includes("ixen-version-select"), "expected version selector");
   assert(previous.includes("first"), "expected previous page to rotate");

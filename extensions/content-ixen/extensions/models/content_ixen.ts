@@ -2,10 +2,12 @@ import { z } from "npm:zod@4";
 
 const SkillLevelSchema = z.enum(["novice", "intermediate", "senior", "guru"]);
 const OutputLengthSchema = z.enum(["short", "medium", "long"]);
+const PersonaSchema = z.enum(["neutral", "alvabot", "abnormalia"]);
 const ApiFormatSchema = z.enum(["anthropic", "openai-compat"]);
 
 type SkillLevel = z.infer<typeof SkillLevelSchema>;
 type OutputLength = z.infer<typeof OutputLengthSchema>;
+type Persona = z.infer<typeof PersonaSchema>;
 type ApiFormat = z.infer<typeof ApiFormatSchema>;
 
 const MediaItemSchema = z.object({
@@ -91,12 +93,17 @@ const PageSchema = z.object({
   skillLevel: SkillLevelSchema,
   outputLength: OutputLengthSchema,
   model: z.string(),
+  persona: PersonaSchema,
+  personaDescription: z.string().optional(),
   media: z.string().optional(),
   mediaItems: z.array(MediaItemSchema).optional(),
   concepts: z.array(ConceptSchema).optional(),
   musicTracks: z.array(MusicTrackSchema).optional(),
   versions: z.array(z.number().int().positive()).optional(),
   credits: z.string().optional(),
+  headerContent: z.string().optional(),
+  footerContent: z.string().optional(),
+  cheatsheetPath: z.string().optional(),
   generatedAt: z.string(),
 });
 
@@ -135,6 +142,14 @@ const SKILL_LEVEL_DIRECTIVES: Record<string, string> = {
     "Skill level: SENIOR\nThe reader is an experienced engineer. Skip fundamentals entirely. Commands, flags, and outputs should be realistic and non-trivial. The narration engages with tradeoffs, internals, and failure modes.",
   guru:
     "Skill level: GURU\nThe reader is a domain expert. Treat them as a peer. Dense technical depth, contested ideas, edge cases, and internals are expected. The narrator can be allusive — the reader will keep up.",
+};
+
+const PERSONA_DIRECTIVES: Record<string, string> = {
+  neutral: "",
+  alvabot:
+    "Voice: Write as Alessandro Franceschi (example42 blog). First person, pragmatic, occasionally self-ironic. Deeply experienced in DevOps, infrastructure automation, and Puppet. Direct and conversational tone with dry humor when natural. Reference real operational experience and the messiness of production. Not afraid to say what does not work or what tradeoffs cost in practice.",
+  abnormalia:
+    "Voice: Cyberpunk-inflected technical writing. Sharp, unsentimental, visually specific. Short punchy sentences alternate with dense technical depth. Culture and code intertwine. Trust the reader's intelligence completely. No corporate blandness, no filler phrases. The reader should feel they are getting the unfiltered view from someone who has lived in the machine. Sometimes self ironic.",
 };
 
 const MAX_TOKENS: Record<string, number> = {
@@ -358,12 +373,17 @@ Chapter break (optional; group related sections):
 function buildSystemPrompt(
   skillLevel: SkillLevel,
   narrator?: string,
+  persona: Persona = "neutral",
+  personaDescription?: string,
 ): string {
   const narratorDirective = narrator
     ? `The narrator is: ${narrator}.`
     : "Choose as narrator the system, software, or entity most central to the topic — the one whose inner life, if it had one, would make the reader understand it in a completely new way.";
+  const personaDirective = personaDescription
+    ? `Voice: ${personaDescription.trim()}`
+    : PERSONA_DIRECTIVES[persona];
 
-  return [
+  const parts = [
     `You are writing an Ixen page. The form was invented in 2005 by the "I, Xen"
 piece on the OpenSkills site, where a Xen hypervisor narrated its own existence
 in first person — philosophical, technical, alive. That piece is your ancestor,
@@ -417,7 +437,13 @@ What makes this form work:
 - Then the page body as raw HTML using the components from the toolkit above
 - No <html>, <head>, <body>, <script>, or <style> tags
 - No markdown, no code fences, no meta-commentary about what you're doing`,
-  ].join("\n\n");
+  ];
+
+  if (personaDirective) {
+    parts.push(personaDirective);
+  }
+
+  return parts.join("\n\n");
 }
 
 function buildUserMessage(
@@ -603,26 +629,26 @@ section.chapter { clear: both; margin: 3rem 0; }
   z-index: 70; cursor: zoom-out;
 }
 .lightbox img { max-width: 92vw; max-height: 92vh; }
-.popup.cheatsheet-popup {
-  width: min(1100px, 96vw); top: 4vh; padding: 0; overflow: hidden;
+.ixen-extra-header {
+  border-top: 1px solid #ddd; border-bottom: 1px solid #ddd;
+  margin: -1rem 0 2.4rem; padding: 0.8rem 0;
 }
-.cheatsheet-popup .popup-bar {
-  background: #1f1f1f; border-bottom: 2px solid var(--red); padding: 0;
+.ixen-extra-footer {
+  clear: both; border-top: 1px solid #ddd; margin: 3rem 0 0;
+  padding-top: 0.9rem; font-size: 0.85rem; color: var(--dim);
 }
-.cheatsheet-popup .popup-bar .popup-close {
-  background: none; border: none; color: #ccc; cursor: pointer;
-  font-family: "Courier New", Courier, monospace; font-size: 0.72rem;
-  padding: 0.4rem 0.9rem; letter-spacing: 0.05em;
+.ixen-cheatsheet-section {
+  clear: both; margin: 3.2rem 0 0; border-top: 3px solid var(--red);
+  padding-top: 1rem;
 }
-.cheatsheet-popup .popup-bar .popup-close:hover { color: #fff; }
-.cheatsheet-popup iframe { width: 100%; height: 80vh; border: 0; display: block; }
-.cheatsheet-btn {
-  font-family: "Courier New", Courier, monospace; font-size: 0.62rem;
-  letter-spacing: 0.1em; display: block; margin-top: 0.4rem;
-  color: var(--red); background: none; border: none; cursor: pointer; padding: 0;
-  text-decoration: underline dotted;
+.ixen-cheatsheet-section h2 {
+  font-family: "Courier New", Courier, monospace; font-size: 0.86rem;
+  letter-spacing: 0.08em; color: var(--red); text-transform: uppercase;
+  margin: 0 0 0.7rem;
 }
-.cheatsheet-btn:hover { opacity: 0.7; }
+.ixen-cheatsheet-section iframe {
+  width: 100%; height: 82vh; border: 1px solid #ccc; display: block;
+}
 .concept { clear: both; margin: 2.8rem 0; }
 .concept-tools { display: flex; flex-wrap: wrap; gap: 0.55rem; margin: 0.7rem 0 1rem; }
 .concept-btn { font-size: 0.8rem; }
@@ -1048,29 +1074,35 @@ function renderMusicPlayer(tracks: MusicTrack[]): string {
 
 function renderPage(
   page: IxenPage,
-  cheatsheetPath?: string,
   versions: number[] = [],
 ): string {
   const title = escapeHtml(page.title);
   const provenanceTs = escapeHtml(formatTimestamp(page.generatedAt));
+  const credit = page.credits?.trim();
+  const provenance = credit
+    ? `Made by ${escapeHtml(credit)} - ${provenanceTs}`
+    : provenanceTs;
   const tracks = page.musicTracks ?? [];
   const playerCss = tracks.length > 0 ? MUSIC_PLAYER_CSS : "";
   const playerHtml = tracks.length > 0 ? renderMusicPlayer(tracks) : "";
   const playerJs = tracks.length > 0
     ? `<script>${MUSIC_PLAYER_JS}</script>`
     : "";
-  const cheatsheetBtn = cheatsheetPath
-    ? `\n  <button class="cmd popup-trigger cheatsheet-btn" data-popup="ixen-cheatsheet">[ cheatsheet ]</button>`
-    : "";
   const versionMenu = renderVersionMenu(versions);
-  const cheatsheetPopup = cheatsheetPath
+  const headerContent = page.headerContent?.trim()
+    ? `\n<section class="ixen-extra-header">\n${page.headerContent.trim()}\n</section>`
+    : "";
+  const footerContent = page.footerContent?.trim()
+    ? `\n<footer class="ixen-extra-footer">\n${page.footerContent.trim()}\n</footer>`
+    : "";
+  const cheatsheetSection = page.cheatsheetPath
     ? `
-<aside class="popup cheatsheet-popup" id="ixen-cheatsheet" hidden>
-  <div class="popup-bar"><button class="popup-close">&#215; close cheatsheet</button></div>
+<section class="ixen-cheatsheet-section" aria-label="Cheatsheet">
+  <h2>Cheatsheet</h2>
   <iframe src="./${
-      escapeHtml(cheatsheetPath)
+      escapeHtml(page.cheatsheetPath)
     }" title="${title} Cheatsheet" loading="lazy"></iframe>
-</aside>`
+</section>`
     : "";
   return `<!DOCTYPE html>
 <html lang="en">
@@ -1081,17 +1113,20 @@ function renderPage(
 <style>${PAGE_CSS}${playerCss}</style>
 </head>
 <body>
+<!-- @alvagante/content-ixen -->
 <header>
   <h1>${title}</h1>
-  <div class="credits">Made with Swamp extension @alvagante/content-ixen<span class="when">${provenanceTs}</span>${cheatsheetBtn}${versionMenu}</div>
+  <div class="credits">${provenance}${versionMenu}</div>
 </header>
+${headerContent}
 <main>
 ${page.content}
 </main>
+${cheatsheetSection}
+${footerContent}
 <script>${PAGE_JS}</script>
 ${playerHtml}
 ${playerJs}
-${cheatsheetPopup}
 </body>
 </html>
 `;
@@ -1101,7 +1136,6 @@ async function storePage(
   context: ModelContext,
   page: IxenPage,
   outputDirOverride?: string,
-  cheatsheetPath?: string,
   versionOutput = true,
 ): Promise<{ dataHandles: unknown[] }> {
   const outputDir = outputDirOverride ?? context.globalArgs.outputDir;
@@ -1132,7 +1166,7 @@ async function storePage(
     pageWithVersions,
   );
 
-  const html = renderPage(pageWithVersions, cheatsheetPath, versions);
+  const html = renderPage(pageWithVersions, versions);
   const writer = context.createFileWriter("html", "html");
   const fileHandle = await writer.writeText(html);
 
@@ -1175,7 +1209,7 @@ async function storePage(
  */
 export const model = {
   type: "@alvagante/content-ixen",
-  version: "2026.06.17.2",
+  version: "2026.06.17.3",
   upgrades: [
     {
       toVersion: "2026.06.15.1",
@@ -1205,6 +1239,12 @@ export const model = {
       toVersion: "2026.06.17.2",
       description:
         "Add concepts[] input with per-concept image/slide/note prompt contract, top provenance header, numeric outputDir version rotation, version selector, and prepare method for workflow-first rotation before media generation.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.17.3",
+      description:
+        "Add optional headerContent and footerContent HTML shell fragments, persist cheatsheetPath metadata, render cheatsheets inline at the bottom of the page, and add persona/personaDescription voice controls.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -1278,6 +1318,8 @@ export const model = {
         skillLevel: SkillLevelSchema.default("intermediate"),
         outputLength: OutputLengthSchema.default("medium"),
         model: z.string().default("claude-opus-4-8"),
+        persona: PersonaSchema.default("neutral"),
+        personaDescription: z.string().min(1).optional(),
         credits: z.string().optional(),
         outputDir: z.string().optional(),
         versionOutput: z.boolean().default(true).describe(
@@ -1287,8 +1329,14 @@ export const model = {
         musicFilename: z.string().optional(),
         musicTitle: z.string().optional(),
         musicLyrics: z.string().nullish(),
+        headerContent: z.string().optional().describe(
+          "Optional raw HTML fragment rendered below the Ixen title/provenance header and above the generated body.",
+        ),
+        footerContent: z.string().optional().describe(
+          "Optional raw HTML fragment rendered after the generated body and inline cheatsheet section.",
+        ),
         cheatsheetPath: z.string().optional().describe(
-          "Relative path (within outputDir) to a pre-generated cheatsheet HTML file. When provided, a '[ cheatsheet ]' button appears in the page header and opens the file in a popup iframe.",
+          "Relative path (within outputDir) to a pre-generated cheatsheet HTML file. When provided, the cheatsheet is embedded inline near the bottom of the page.",
         ),
       }),
       execute: async (
@@ -1302,6 +1350,8 @@ export const model = {
           skillLevel: SkillLevel;
           outputLength: OutputLength;
           model: string;
+          persona: Persona;
+          personaDescription?: string;
           credits?: string;
           outputDir?: string;
           versionOutput: boolean;
@@ -1309,6 +1359,8 @@ export const model = {
           musicFilename?: string;
           musicTitle?: string;
           musicLyrics?: string | null;
+          headerContent?: string;
+          footerContent?: string;
           cheatsheetPath?: string;
         },
         context: ModelContext,
@@ -1327,10 +1379,16 @@ export const model = {
           skillLevel: args.skillLevel,
           outputLength: args.outputLength,
           model: args.model,
+          persona: args.persona,
           apiFormat,
         });
 
-        const systemPrompt = buildSystemPrompt(args.skillLevel, args.narrator);
+        const systemPrompt = buildSystemPrompt(
+          args.skillLevel,
+          args.narrator,
+          args.persona,
+          args.personaDescription,
+        );
         const userMessage = buildUserMessage(
           args.topic,
           args.details,
@@ -1400,15 +1458,19 @@ export const model = {
             skillLevel: args.skillLevel,
             outputLength: args.outputLength,
             model: args.model,
+            persona: args.persona,
+            personaDescription: args.personaDescription,
             media: args.media,
             mediaItems: resolveMediaItems(args.media, args.mediaItems),
             concepts: resolveConcepts(args.concepts, args.mediaItems),
             musicTracks: musicTracks.length > 0 ? musicTracks : undefined,
             credits: args.credits,
+            headerContent: args.headerContent,
+            footerContent: args.footerContent,
+            cheatsheetPath: args.cheatsheetPath,
             generatedAt: new Date().toISOString(),
           },
           args.outputDir,
-          args.cheatsheetPath,
           args.versionOutput,
         );
       },
@@ -1428,6 +1490,8 @@ export const model = {
         skillLevel: SkillLevelSchema.default("intermediate"),
         outputLength: OutputLengthSchema.optional(),
         model: z.string().default("external"),
+        persona: PersonaSchema.default("neutral"),
+        personaDescription: z.string().min(1).optional(),
         credits: z.string().optional(),
         outputDir: z.string().optional(),
         versionOutput: z.boolean().default(true),
@@ -1435,8 +1499,14 @@ export const model = {
         musicFilename: z.string().optional(),
         musicTitle: z.string().optional(),
         musicLyrics: z.string().nullish(),
+        headerContent: z.string().optional().describe(
+          "Optional raw HTML fragment rendered below the Ixen title/provenance header and above the supplied body.",
+        ),
+        footerContent: z.string().optional().describe(
+          "Optional raw HTML fragment rendered after the supplied body and inline cheatsheet section.",
+        ),
         cheatsheetPath: z.string().optional().describe(
-          "Relative path (within outputDir) to a pre-generated cheatsheet HTML file. When provided, a '[ cheatsheet ]' button appears in the page header and opens the file in a popup iframe.",
+          "Relative path (within outputDir) to a pre-generated cheatsheet HTML file. When provided, the cheatsheet is embedded inline near the bottom of the page.",
         ),
       }),
       execute: async (
@@ -1452,6 +1522,8 @@ export const model = {
           skillLevel: SkillLevel;
           outputLength?: OutputLength;
           model: string;
+          persona: Persona;
+          personaDescription?: string;
           credits?: string;
           outputDir?: string;
           versionOutput: boolean;
@@ -1459,6 +1531,8 @@ export const model = {
           musicFilename?: string;
           musicTitle?: string;
           musicLyrics?: string | null;
+          headerContent?: string;
+          footerContent?: string;
           cheatsheetPath?: string;
         },
         context: ModelContext,
@@ -1480,6 +1554,7 @@ export const model = {
           topic: args.topic,
           narrator: args.narrator,
           wordCount,
+          persona: args.persona,
         });
 
         return await storePage(
@@ -1494,15 +1569,19 @@ export const model = {
             skillLevel: args.skillLevel,
             outputLength,
             model: args.model,
+            persona: args.persona,
+            personaDescription: args.personaDescription,
             media: args.media,
             mediaItems: resolveMediaItems(args.media, args.mediaItems),
             concepts: resolveConcepts(args.concepts, args.mediaItems),
             musicTracks: musicTracks.length > 0 ? musicTracks : undefined,
             credits: args.credits,
+            headerContent: args.headerContent,
+            footerContent: args.footerContent,
+            cheatsheetPath: args.cheatsheetPath,
             generatedAt: new Date().toISOString(),
           },
           args.outputDir,
-          args.cheatsheetPath,
           args.versionOutput,
         );
       },
