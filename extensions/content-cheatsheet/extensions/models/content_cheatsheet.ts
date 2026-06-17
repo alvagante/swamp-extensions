@@ -664,6 +664,7 @@ async function storeCheatsheet(
   outputFormat: OutputFormat,
   content: string,
   outputDirOverride?: string,
+  filenameOverride?: string,
 ): Promise<{ dataHandles: unknown[] }> {
   const handles: unknown[] = [];
 
@@ -679,7 +680,7 @@ async function storeCheatsheet(
     const outputDir = outputDirOverride ?? context.globalArgs.outputDir;
     if (outputDir) {
       await Deno.mkdir(outputDir, { recursive: true });
-      const filename = `${htmlTitle}-cheatsheet.html`;
+      const filename = filenameOverride ?? `${htmlTitle}-cheatsheet.html`;
       const filePath = `${outputDir}/${filename}`;
       await Deno.writeTextFile(filePath, content);
       context.logger.info("Wrote HTML cheatsheet", { path: filePath });
@@ -692,7 +693,7 @@ async function storeCheatsheet(
     const outputDir = outputDirOverride ?? context.globalArgs.outputDir;
     if (outputDir) {
       await Deno.mkdir(outputDir, { recursive: true });
-      const filename = `${mdTitle}-cheatsheet.md`;
+      const filename = filenameOverride ?? `${mdTitle}-cheatsheet.md`;
       const filePath = `${outputDir}/${filename}`;
       await Deno.writeTextFile(filePath, content);
       context.logger.info("Wrote Markdown cheatsheet", { path: filePath });
@@ -735,7 +736,7 @@ function deriveTitle(
  */
 export const model = {
   type: "@alvagante/content-cheatsheet",
-  version: "2026.06.17.1",
+  version: "2026.06.17.2",
 
   globalArguments: z.object({
     apiFormat: ApiFormatSchema.default("anthropic"),
@@ -799,6 +800,9 @@ export const model = {
         outputDir: z.string().optional().describe(
           "Override the global outputDir for this run",
         ),
+        filename: z.string().optional().describe(
+          "Override the output filename (e.g. 'cheatsheet.html'). Defaults to '{title-slug}-cheatsheet.html'. Only applies to html and markdown outputFormats.",
+        ),
       }),
       execute: async (args: {
         topic: string;
@@ -809,6 +813,7 @@ export const model = {
         outputFormat: OutputFormat;
         model: string;
         outputDir?: string;
+        filename?: string;
       }, context: ModelContext): Promise<{ dataHandles: unknown[] }> => {
         const {
           topic,
@@ -819,6 +824,7 @@ export const model = {
           outputFormat,
           model: modelId,
           outputDir,
+          filename,
         } = args;
 
         const { apiFormat, apiKey, baseUrl } = context.globalArgs;
@@ -924,6 +930,7 @@ export const model = {
           outputFormat,
           outputContent,
           outputDir,
+          filename,
         );
       },
     },

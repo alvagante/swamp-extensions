@@ -1,22 +1,25 @@
 id: 12c74cfd-aa80-4d9b-a16c-dcca6928f689
 name: content-mini-site
-description: Generate a mini-site with an AI hero image, a first-person narrated Ixen page, and a background music track
-version: 2
+description: Generate a mini-site with AI images (hero + concept), a cheatsheet popup, a first-person narrated Ixen page, and a background music track. Requires models: my-image, my-cheatsheet, my-music, my-ixen.
+version: 3
 inputs:
   properties:
     outputDir:
       type: string
-      description: Directory where all files (hero.png, audio, index.html) will be written
+      description: Directory where all files (hero.png, concept.png, cheatsheet.html, audio, index.html) will be written
     topic:
       type: string
-      description: Topic for the Ixen page and music
+      description: Topic for the Ixen page, cheatsheet, and music
     heroPrompt:
       type: string
-      description: Image generation prompt for the hero image
+      description: Image generation prompt for the hero image (floated large, opening of page)
+    conceptPrompt:
+      type: string
+      description: Image generation prompt for the concept image (floated beside relevant body text)
     style:
       type: string
       default: ixen-light
-      description: Image style preset (ixen-dark, ixen-light, pencil-bw, pencil-color-accents, blueprint, technical-diagram, cyberpunk-photo, educational, none)
+      description: Image style preset for both images (ixen-dark, ixen-light, pencil-bw, pencil-color-accents, blueprint, technical-diagram, cyberpunk-photo, educational, none)
     background:
       type: string
       default: opaque
@@ -41,9 +44,10 @@ inputs:
     - outputDir
     - topic
     - heroPrompt
+    - conceptPrompt
 jobs:
   - name: images
-    description: Generate the hero image
+    description: Generate hero and concept images (both use the same style)
     steps:
       - name: hero
         description: Generate hero image and write to outputDir as hero.png
@@ -56,6 +60,33 @@ jobs:
             style: ${{ inputs.style }}
             background: ${{ inputs.background }}
             filename: hero.png
+            outputDir: ${{ inputs.outputDir }}
+      - name: concept
+        description: Generate concept image and write to outputDir as concept.png
+        task:
+          type: model_method
+          modelIdOrName: my-image
+          methodName: generate
+          inputs:
+            prompt: ${{ inputs.conceptPrompt }}
+            style: ${{ inputs.style }}
+            background: ${{ inputs.background }}
+            filename: concept.png
+            outputDir: ${{ inputs.outputDir }}
+  - name: cheatsheet
+    description: Generate cheatsheet HTML (my-cheatsheet must be an @alvagante/content-cheatsheet model instance)
+    steps:
+      - name: generate
+        description: Generate cheatsheet and write to outputDir as cheatsheet.html
+        task:
+          type: model_method
+          modelIdOrName: my-cheatsheet
+          methodName: generate
+          inputs:
+            topic: ${{ inputs.topic }}
+            skillLevel: ${{ inputs.skillLevel }}
+            outputFormat: html
+            filename: cheatsheet.html
             outputDir: ${{ inputs.outputDir }}
   - name: music
     description: Generate background music track
@@ -72,9 +103,12 @@ jobs:
             mood: ${{ inputs.musicMood }}
             outputDir: ${{ inputs.outputDir }}
   - name: page
-    description: Generate Ixen narrated page with hero image and music player
+    description: Generate Ixen narrated page with hero + concept images, cheatsheet popup, and music player
     dependsOn:
       - job: images
+        condition:
+          type: succeeded
+      - job: cheatsheet
         condition:
           type: succeeded
       - job: music
@@ -89,10 +123,15 @@ jobs:
           methodName: generate
           inputs:
             topic: ${{ inputs.topic }}
-            media: hero.png
+            mediaItems:
+              - path: hero.png
+                prompt: ${{ inputs.heroPrompt }}
+              - path: concept.png
+                prompt: ${{ inputs.conceptPrompt }}
             skillLevel: ${{ inputs.skillLevel }}
             outputLength: ${{ inputs.outputLength }}
             outputDir: ${{ inputs.outputDir }}
+            cheatsheetPath: cheatsheet.html
             musicFilename: ${{ data.latest("my-music", "song").attributes.filename }}
             musicTitle: ${{ data.latest("my-music", "song").attributes.title }}
             musicLyrics: ${{ data.latest("my-music", "song").attributes.lyrics }}

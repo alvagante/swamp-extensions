@@ -373,9 +373,13 @@ function buildUserMessage(
         i + 1
       }. path: ./${m.path}\n   alt text (use exactly this): ${alt}`;
     });
+    const heroLine = items.length > 1
+      ? `Image 1 is the hero: float-left, large, placed near the opening.\n` +
+        `Images 2+ are concept images: place each beside the passage of text that discusses their subject (not all at the top). Alternate float-left / float-right for these.\n`
+      : `Scatter the image at a natural break in the narration.\n`;
     parts.push(
-      `Images to embed — scatter them across the page at natural breaks in the narration.\n` +
-        `Alternate float-left and float-right, starting with float-left.\n` +
+      `Images to embed:\n` +
+        heroLine +
         `Vary size (small/large) for visual rhythm — not every image the same weight.\n` +
         `Use class="zoom float-left" or class="zoom float-right", optionally adding "small" or "large".\n` +
         `Always use the provided alt text exactly.\n\n` +
@@ -503,6 +507,26 @@ section.chapter { clear: both; margin: 3rem 0; }
 }
 .lightbox img { max-width: 92vw; max-height: 92vh; }
 footer { clear: both; margin-top: 4rem; font-size: 0.72rem; color: var(--dim); }
+.popup.cheatsheet-popup {
+  width: min(1100px, 96vw); top: 4vh; padding: 0; overflow: hidden;
+}
+.cheatsheet-popup .popup-bar {
+  background: #1f1f1f; border-bottom: 2px solid var(--red); padding: 0;
+}
+.cheatsheet-popup .popup-bar .popup-close {
+  background: none; border: none; color: #ccc; cursor: pointer;
+  font-family: "Courier New", Courier, monospace; font-size: 0.72rem;
+  padding: 0.4rem 0.9rem; letter-spacing: 0.05em;
+}
+.cheatsheet-popup .popup-bar .popup-close:hover { color: #fff; }
+.cheatsheet-popup iframe { width: 100%; height: 80vh; border: 0; display: block; }
+.cheatsheet-btn {
+  font-family: "Courier New", Courier, monospace; font-size: 0.62rem;
+  letter-spacing: 0.1em; display: block; margin-top: 0.4rem;
+  color: var(--red); background: none; border: none; cursor: pointer; padding: 0;
+  text-decoration: underline dotted;
+}
+.cheatsheet-btn:hover { opacity: 0.7; }
 `;
 
 const MUSIC_PLAYER_CSS = `
@@ -787,7 +811,7 @@ function renderMusicPlayer(tracks: MusicTrack[]): string {
 <div id="ixen-tracklist-panel" hidden></div>`;
 }
 
-function renderPage(page: IxenPage): string {
+function renderPage(page: IxenPage, cheatsheetPath?: string): string {
   const title = escapeHtml(page.title);
   const credits = escapeHtml(page.credits ?? `txt by ${page.model}`);
   const when = escapeHtml(page.generatedAt.slice(0, 10));
@@ -797,6 +821,18 @@ function renderPage(page: IxenPage): string {
   const playerHtml = tracks.length > 0 ? renderMusicPlayer(tracks) : "";
   const playerJs = tracks.length > 0
     ? `<script>${MUSIC_PLAYER_JS}</script>`
+    : "";
+  const cheatsheetBtn = cheatsheetPath
+    ? `\n  <button class="cmd popup-trigger cheatsheet-btn" data-popup="ixen-cheatsheet">[ cheatsheet ]</button>`
+    : "";
+  const cheatsheetPopup = cheatsheetPath
+    ? `
+<aside class="popup cheatsheet-popup" id="ixen-cheatsheet" hidden>
+  <div class="popup-bar"><button class="popup-close">&#215; close cheatsheet</button></div>
+  <iframe src="./${
+      escapeHtml(cheatsheetPath)
+    }" title="${title} Cheatsheet" loading="lazy"></iframe>
+</aside>`
     : "";
   return `<!DOCTYPE html>
 <html lang="en">
@@ -809,7 +845,7 @@ function renderPage(page: IxenPage): string {
 <body>
 <header>
   <h1>${title}</h1>
-  <div class="credits">${credits}<span class="when">${when}</span></div>
+  <div class="credits">${credits}<span class="when">${when}</span>${cheatsheetBtn}</div>
 </header>
 <main>
 ${page.content}
@@ -818,6 +854,7 @@ ${page.content}
 <script>${PAGE_JS}</script>
 ${playerHtml}
 ${playerJs}
+${cheatsheetPopup}
 </body>
 </html>
 `;
@@ -827,10 +864,11 @@ async function storePage(
   context: ModelContext,
   page: IxenPage,
   outputDirOverride?: string,
+  cheatsheetPath?: string,
 ): Promise<{ dataHandles: unknown[] }> {
   const pageHandle = await context.writeResource("page", "page", page);
 
-  const html = renderPage(page);
+  const html = renderPage(page, cheatsheetPath);
   const writer = context.createFileWriter("html", "html");
   const fileHandle = await writer.writeText(html);
 
@@ -875,7 +913,7 @@ async function storePage(
  */
 export const model = {
   type: "@alvagante/content-ixen",
-  version: "2026.06.16.1",
+  version: "2026.06.17.1",
   upgrades: [
     {
       toVersion: "2026.06.15.1",
@@ -893,6 +931,12 @@ export const model = {
       toVersion: "2026.06.16.1",
       description:
         "Add music player: musicTracks, musicFilename, musicTitle, musicLyrics args; self-contained fixed-bottom player with autoplay fallback, lyrics panel, and multi-track support",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.17.1",
+      description:
+        "Add cheatsheetPath arg: when provided, embeds a popup iframe linking to a pre-generated cheatsheet HTML file (workflow-composed via @alvagante/content-cheatsheet). Improve multi-image placement prompt: hero image goes first prominent, concept images scatter beside relevant text.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -938,6 +982,9 @@ export const model = {
         musicFilename: z.string().optional(),
         musicTitle: z.string().optional(),
         musicLyrics: z.string().nullish(),
+        cheatsheetPath: z.string().optional().describe(
+          "Relative path (within outputDir) to a pre-generated cheatsheet HTML file. When provided, a '[ cheatsheet ]' button appears in the page header and opens the file in a popup iframe.",
+        ),
       }),
       execute: async (
         args: {
@@ -955,6 +1002,7 @@ export const model = {
           musicFilename?: string;
           musicTitle?: string;
           musicLyrics?: string | null;
+          cheatsheetPath?: string;
         },
         context: ModelContext,
       ) => {
@@ -1032,22 +1080,27 @@ export const model = {
           args.musicLyrics,
         );
 
-        return await storePage(context, {
-          title,
-          narrator: args.narrator ?? args.topic,
-          topic: args.topic,
-          details: args.details,
-          content,
-          wordCount,
-          skillLevel: args.skillLevel,
-          outputLength: args.outputLength,
-          model: args.model,
-          media: args.media,
-          mediaItems: resolveMediaItems(args.media, args.mediaItems),
-          musicTracks: musicTracks.length > 0 ? musicTracks : undefined,
-          credits: args.credits,
-          generatedAt: new Date().toISOString(),
-        }, args.outputDir);
+        return await storePage(
+          context,
+          {
+            title,
+            narrator: args.narrator ?? args.topic,
+            topic: args.topic,
+            details: args.details,
+            content,
+            wordCount,
+            skillLevel: args.skillLevel,
+            outputLength: args.outputLength,
+            model: args.model,
+            media: args.media,
+            mediaItems: resolveMediaItems(args.media, args.mediaItems),
+            musicTracks: musicTracks.length > 0 ? musicTracks : undefined,
+            credits: args.credits,
+            generatedAt: new Date().toISOString(),
+          },
+          args.outputDir,
+          args.cheatsheetPath,
+        );
       },
     },
     save: {
@@ -1070,6 +1123,9 @@ export const model = {
         musicFilename: z.string().optional(),
         musicTitle: z.string().optional(),
         musicLyrics: z.string().nullish(),
+        cheatsheetPath: z.string().optional().describe(
+          "Relative path (within outputDir) to a pre-generated cheatsheet HTML file. When provided, a '[ cheatsheet ]' button appears in the page header and opens the file in a popup iframe.",
+        ),
       }),
       execute: async (
         args: {
@@ -1089,6 +1145,7 @@ export const model = {
           musicFilename?: string;
           musicTitle?: string;
           musicLyrics?: string | null;
+          cheatsheetPath?: string;
         },
         context: ModelContext,
       ) => {
@@ -1111,22 +1168,27 @@ export const model = {
           wordCount,
         });
 
-        return await storePage(context, {
-          title,
-          narrator: args.narrator,
-          topic: args.topic,
-          details: args.details,
-          content,
-          wordCount,
-          skillLevel: args.skillLevel,
-          outputLength,
-          model: args.model,
-          media: args.media,
-          mediaItems: resolveMediaItems(args.media, args.mediaItems),
-          musicTracks: musicTracks.length > 0 ? musicTracks : undefined,
-          credits: args.credits,
-          generatedAt: new Date().toISOString(),
-        }, args.outputDir);
+        return await storePage(
+          context,
+          {
+            title,
+            narrator: args.narrator,
+            topic: args.topic,
+            details: args.details,
+            content,
+            wordCount,
+            skillLevel: args.skillLevel,
+            outputLength,
+            model: args.model,
+            media: args.media,
+            mediaItems: resolveMediaItems(args.media, args.mediaItems),
+            musicTracks: musicTracks.length > 0 ? musicTracks : undefined,
+            credits: args.credits,
+            generatedAt: new Date().toISOString(),
+          },
+          args.outputDir,
+          args.cheatsheetPath,
+        );
       },
     },
   },
