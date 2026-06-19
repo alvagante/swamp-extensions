@@ -23,6 +23,12 @@ const MusicTrackSchema = z.object({
 });
 type MusicTrack = z.infer<typeof MusicTrackSchema>;
 
+const InfographicItemSchema = z.object({
+  path: z.string(),
+  title: z.string().optional(),
+});
+type InfographicItem = z.infer<typeof InfographicItemSchema>;
+
 const ConceptSchema = z.object({
   name: z.string().min(1),
   details: z.string().optional(),
@@ -104,6 +110,9 @@ const PageSchema = z.object({
   headerContent: z.string().optional(),
   footerContent: z.string().optional(),
   cheatsheetPath: z.string().optional(),
+  infographicPath: z.string().optional(),
+  infographicPaths: z.array(z.string()).optional(),
+  infographics: z.array(InfographicItemSchema).optional(),
   generatedAt: z.string(),
 });
 
@@ -283,8 +292,8 @@ Narration paragraph (plain prose; use <strong> sparingly — only for the
 one or two words per paragraph that genuinely carry the weight):
   <p>I exist inside eight walls of namespace. Not the prison you imagine.</p>
 
-Slowed-down whispered line (letter-spaced, for silence between thoughts):
-  <p class="whisper">w a i t i n g</p>
+Quiet emphasized line (for silence between thoughts; do not add spaces between letters):
+  <p class="whisper">waiting between interrupts</p>
 
 Pull quote (a single sentence the reader should hear twice):
   <blockquote class="ixen-pull">Every layer is a promise I make to the layers above me.</blockquote>
@@ -580,7 +589,8 @@ header h1 {
   margin: 0; line-height: 1.05; text-transform: uppercase;
 }
 header .credits { text-align: right; font-size: 0.75rem; color: var(--red); font-weight: bold; white-space: nowrap; padding-top: 0.4rem; }
-header .credits .when { color: var(--dim); font-weight: normal; display: block; }
+header .credits a { color: var(--red); text-decoration: underline dotted; }
+header .credits .byline { color: var(--dim); font-weight: normal; display: block; margin-top: 0.2rem; }
 .version-menu { margin-top: 0.55rem; font-size: 0.72rem; color: var(--dim); }
 .version-menu label { display: block; margin-bottom: 0.2rem; }
 .version-menu select {
@@ -588,10 +598,21 @@ header .credits .when { color: var(--dim); font-weight: normal; display: block; 
   max-width: 13rem; color: var(--ink); background: #fff;
   border: 1px solid #ccc; padding: 0.2rem 0.3rem;
 }
+.concept-index {
+  display: flex; justify-content: flex-end; gap: 0.55rem;
+  margin-top: 0.45rem;
+}
+.concept-index .cmd { font-size: 0.72rem; }
 p { margin: 0.45em 0; }
 p strong { color: #000; }
 .binary { font-family: "Courier New", Courier, monospace; letter-spacing: 0.08em; color: var(--ink); }
-.whisper { letter-spacing: 0.45em; color: var(--dim); }
+.whisper {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.18rem;
+  font-style: italic;
+  letter-spacing: 0;
+  color: var(--dim);
+}
 .term {
   font-family: "Courier New", Courier, monospace; font-size: 0.95rem;
   margin: 1.3em 0 0.25em; color: var(--dim);
@@ -654,13 +675,22 @@ section.chapter { clear: both; margin: 3rem 0; }
   clear: both; margin: 3.2rem 0 0; border-top: 3px solid var(--red);
   padding-top: 1rem;
 }
-.ixen-cheatsheet-section h2 {
+.ixen-infographic-section {
+  clear: both; margin: 3.2rem 0 0; border-top: 3px solid var(--red);
+  padding-top: 1rem;
+}
+.ixen-cheatsheet-section h2, .ixen-infographic-section h2 {
   font-family: "Courier New", Courier, monospace; font-size: 0.86rem;
   letter-spacing: 0.08em; color: var(--red); text-transform: uppercase;
   margin: 0 0 0.7rem;
 }
-.ixen-cheatsheet-section iframe {
+.ixen-cheatsheet-section iframe, .ixen-infographic-section iframe {
   width: 100%; height: 82vh; border: 1px solid #ccc; display: block;
+}
+.ixen-infographic-frame + .ixen-infographic-frame { margin-top: 1.4rem; }
+.ixen-infographic-frame h3 {
+  font-family: "Courier New", Courier, monospace; font-size: 0.78rem;
+  color: var(--dim); font-weight: normal; margin: 0 0 0.45rem;
 }
 .concept { clear: both; margin: 2.8rem 0; }
 .concept-tools { display: flex; flex-wrap: wrap; gap: 0.55rem; margin: 0.7rem 0 1rem; }
@@ -669,6 +699,13 @@ section.chapter { clear: both; margin: 3rem 0; }
 .concept-slide ul { margin: 0.4rem 0 1rem 1.2rem; padding: 0; }
 .concept-slide li { margin: 0.35rem 0; }
 .concept-note p { margin: 0.75rem 0; }
+.concept-index-popup h2 { margin: 0.5rem 0 1rem; }
+.concept-index-item {
+  border-top: 1px solid #ddd;
+  margin-top: 1rem;
+  padding-top: 1rem;
+}
+.concept-index-item:first-of-type { border-top: 0; margin-top: 0; padding-top: 0; }
 `;
 
 const MUSIC_PLAYER_CSS = `
@@ -766,6 +803,35 @@ const PAGE_JS = `
     document.querySelectorAll(".popup").forEach(function (p) { p.hidden = true; });
     backdrop.hidden = true;
   }
+
+  function buildConceptIndexPopup(sourceClass, popupId, title) {
+    var sources = Array.prototype.slice.call(document.querySelectorAll(".popup." + sourceClass));
+    if (!sources.length || document.getElementById(popupId)) return;
+    var popup = document.createElement("aside");
+    popup.className = "popup concept-index-popup";
+    popup.id = popupId;
+    popup.hidden = true;
+    popup.innerHTML = '<div class="popup-bar"><button class="popup-close">Close Window</button></div><h2>' + title + '</h2>';
+    sources.forEach(function (source, index) {
+      var section = document.createElement("section");
+      section.className = "concept-index-item";
+      var clone = source.cloneNode(true);
+      clone.removeAttribute("id");
+      clone.hidden = false;
+      clone.querySelectorAll(".popup-bar").forEach(function (bar) { bar.remove(); });
+      if (!clone.querySelector("h2")) {
+        var heading = document.createElement("h2");
+        heading.textContent = title.replace(/^All /, "") + " " + (index + 1);
+        section.appendChild(heading);
+      }
+      while (clone.firstChild) section.appendChild(clone.firstChild);
+      popup.appendChild(section);
+    });
+    document.body.appendChild(popup);
+  }
+
+  buildConceptIndexPopup("concept-slide", "ixen-all-slides", "All slides");
+  buildConceptIndexPopup("concept-note", "ixen-all-notes", "All notes");
 
   document.querySelectorAll(".popup-trigger").forEach(function (btn) {
     btn.addEventListener("click", function () {
@@ -1085,16 +1151,89 @@ function renderMusicPlayer(tracks: MusicTrack[]): string {
   <div id="ixen-tracklist-panel" hidden></div>`;
 }
 
+function renderProvenance(
+  credit: string | undefined,
+  timestamp: string,
+): string {
+  const byline = credit?.trim()
+    ? `By ${escapeHtml(credit.trim())} - ${timestamp}`
+    : timestamp;
+  return `<a href="https://swamp-club.com/extensions/@alvagante/content-ixen" target="_blank" rel="noopener noreferrer">Generated with Swamp extension @alvagante/content-ixen</a><span class="byline">${byline}</span>`;
+}
+
+function hasPopupClass(content: string, className: string): boolean {
+  return new RegExp(`class=["'][^"']*\\b${className}\\b`).test(content);
+}
+
+function renderConceptIndex(content: string): string {
+  const hasSlides = hasPopupClass(content, "concept-slide");
+  const hasNotes = hasPopupClass(content, "concept-note");
+  if (!hasSlides && !hasNotes) return "";
+
+  const buttons: string[] = [];
+  if (hasSlides) {
+    buttons.push(
+      '<button class="cmd popup-trigger" data-popup="ixen-all-slides">all slides</button>',
+    );
+  }
+  if (hasNotes) {
+    buttons.push(
+      '<button class="cmd popup-trigger" data-popup="ixen-all-notes">all notes</button>',
+    );
+  }
+
+  return `
+    <div class="concept-index">
+      ${buttons.join("\n      ")}
+    </div>`;
+}
+
+function resolveInfographics(
+  infographicPath?: string,
+  infographicPaths?: string[],
+  infographics?: InfographicItem[],
+): InfographicItem[] {
+  if (infographics && infographics.length > 0) return infographics;
+
+  const paths = [
+    ...(infographicPath ? [infographicPath] : []),
+    ...(infographicPaths ?? []),
+  ];
+  return [...new Set(paths)].map((path) => ({ path }));
+}
+
+function renderInfographicSection(page: IxenPage): string {
+  const infographics = resolveInfographics(
+    page.infographicPath,
+    page.infographicPaths,
+    page.infographics,
+  );
+  if (infographics.length === 0) return "";
+
+  const frames = infographics.map((item, index) => {
+    const frameTitle = item.title ?? `Infographic ${index + 1}`;
+    return `
+  <div class="ixen-infographic-frame">
+    ${infographics.length > 1 ? `<h3>${escapeHtml(frameTitle)}</h3>` : ""}
+    <iframe src="./${escapeHtml(item.path)}" title="${
+      escapeHtml(frameTitle)
+    }" loading="lazy"></iframe>
+  </div>`;
+  }).join("");
+
+  return `
+<section class="ixen-infographic-section" aria-label="Infographic">
+  <h2>${infographics.length > 1 ? "Infographics" : "Infographic"}</h2>${frames}
+</section>`;
+}
+
 function renderPage(
   page: IxenPage,
   versions: number[] = [],
 ): string {
   const title = escapeHtml(page.title);
   const provenanceTs = escapeHtml(formatTimestamp(page.generatedAt));
-  const credit = page.credits?.trim();
-  const provenance = credit
-    ? `Made by ${escapeHtml(credit)} - ${provenanceTs}`
-    : provenanceTs;
+  const provenance = renderProvenance(page.credits, provenanceTs);
   const tracks = page.musicTracks ?? [];
   const playerCss = tracks.length > 0 ? MUSIC_PLAYER_CSS : "";
   const playerHtml = tracks.length > 0 ? renderMusicPlayer(tracks) : "";
@@ -1102,6 +1241,7 @@ function renderPage(
     ? `<script>${MUSIC_PLAYER_JS}</script>`
     : "";
   const versionMenu = renderVersionMenu(versions);
+  const conceptIndex = renderConceptIndex(page.content);
   const headerContent = page.headerContent?.trim()
     ? `\n<section class="ixen-extra-header">\n${page.headerContent.trim()}\n</section>`
     : "";
@@ -1117,6 +1257,7 @@ function renderPage(
     }" title="${title} Cheatsheet" loading="lazy"></iframe>
 </section>`
     : "";
+  const infographicSection = renderInfographicSection(page);
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1130,11 +1271,12 @@ function renderPage(
 ${headerContent}
 <header>
   <h1>${title}</h1>
-  <div class="credits">${provenance}${versionMenu}</div>
+  <div class="credits">${provenance}${versionMenu}${conceptIndex}</div>
 </header>
 <main>
 ${page.content}
 </main>
+${infographicSection}
 ${cheatsheetSection}
 ${footerContent}
 <script>${PAGE_JS}</script>
@@ -1222,7 +1364,7 @@ async function storePage(
  */
 export const model = {
   type: "@alvagante/content-ixen",
-  version: "2026.06.17.4",
+  version: "2026.06.19.1",
   upgrades: [
     {
       toVersion: "2026.06.15.1",
@@ -1264,6 +1406,12 @@ export const model = {
       toVersion: "2026.06.17.4",
       description:
         "Render headerContent above the built-in Ixen title header and reject truncated or dangling-tag generated HTML before storing output.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.19.1",
+      description:
+        "Add infographicPath, infographicPaths, and infographics[] inputs; render provided infographic HTML files inline near the bottom of the page; render two-line top-right provenance with a Swamp Club extension link; add all-slides and all-notes buttons that open aggregate popups for existing concept slide and note popups; replace letter-spaced whisper text with italic serif emphasis.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -1352,10 +1500,19 @@ export const model = {
           "Optional raw HTML fragment rendered below the Ixen title/provenance header and above the generated body.",
         ),
         footerContent: z.string().optional().describe(
-          "Optional raw HTML fragment rendered after the generated body and inline cheatsheet section.",
+          "Optional raw HTML fragment rendered after the generated body and inline infographic/cheatsheet sections.",
         ),
         cheatsheetPath: z.string().optional().describe(
           "Relative path (within outputDir) to a pre-generated cheatsheet HTML file. When provided, the cheatsheet is embedded inline near the bottom of the page.",
+        ),
+        infographicPath: z.string().optional().describe(
+          "Relative path (within outputDir) to a pre-generated infographic HTML file. When provided, the infographic is embedded inline near the bottom of the page.",
+        ),
+        infographicPaths: z.array(z.string()).optional().describe(
+          "Relative paths (within outputDir) to multiple pre-generated infographic HTML files.",
+        ),
+        infographics: z.array(InfographicItemSchema).optional().describe(
+          "Infographic embeds with relative HTML path and optional title.",
         ),
       }),
       execute: async (
@@ -1381,6 +1538,9 @@ export const model = {
           headerContent?: string;
           footerContent?: string;
           cheatsheetPath?: string;
+          infographicPath?: string;
+          infographicPaths?: string[];
+          infographics?: InfographicItem[];
         },
         context: ModelContext,
       ) => {
@@ -1497,6 +1657,13 @@ export const model = {
             headerContent: args.headerContent,
             footerContent: args.footerContent,
             cheatsheetPath: args.cheatsheetPath,
+            infographicPath: args.infographicPath,
+            infographicPaths: args.infographicPaths,
+            infographics: resolveInfographics(
+              args.infographicPath,
+              args.infographicPaths,
+              args.infographics,
+            ),
             generatedAt: new Date().toISOString(),
           },
           args.outputDir,
@@ -1532,10 +1699,19 @@ export const model = {
           "Optional raw HTML fragment rendered below the Ixen title/provenance header and above the supplied body.",
         ),
         footerContent: z.string().optional().describe(
-          "Optional raw HTML fragment rendered after the supplied body and inline cheatsheet section.",
+          "Optional raw HTML fragment rendered after the supplied body and inline infographic/cheatsheet sections.",
         ),
         cheatsheetPath: z.string().optional().describe(
           "Relative path (within outputDir) to a pre-generated cheatsheet HTML file. When provided, the cheatsheet is embedded inline near the bottom of the page.",
+        ),
+        infographicPath: z.string().optional().describe(
+          "Relative path (within outputDir) to a pre-generated infographic HTML file. When provided, the infographic is embedded inline near the bottom of the page.",
+        ),
+        infographicPaths: z.array(z.string()).optional().describe(
+          "Relative paths (within outputDir) to multiple pre-generated infographic HTML files.",
+        ),
+        infographics: z.array(InfographicItemSchema).optional().describe(
+          "Infographic embeds with relative HTML path and optional title.",
         ),
       }),
       execute: async (
@@ -1563,6 +1739,9 @@ export const model = {
           headerContent?: string;
           footerContent?: string;
           cheatsheetPath?: string;
+          infographicPath?: string;
+          infographicPaths?: string[];
+          infographics?: InfographicItem[];
         },
         context: ModelContext,
       ) => {
@@ -1608,6 +1787,13 @@ export const model = {
             headerContent: args.headerContent,
             footerContent: args.footerContent,
             cheatsheetPath: args.cheatsheetPath,
+            infographicPath: args.infographicPath,
+            infographicPaths: args.infographicPaths,
+            infographics: resolveInfographics(
+              args.infographicPath,
+              args.infographicPaths,
+              args.infographics,
+            ),
             generatedAt: new Date().toISOString(),
           },
           args.outputDir,

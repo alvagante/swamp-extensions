@@ -6,7 +6,7 @@ Generate **Ixen pages** — self-narrated, mixed-media web pages in the traditio
 
 An Ixen page alternates short, evocative, philosophical fragments with concrete technical substance: realistic commands and outputs shown inline or in 2005-style pop-up windows. Concept pages can also include one image, one compact slide popup, and one direct explanatory notes popup per configured concept. The main narrator voice inspires and implies; the popups carry the detailed explanation.
 
-The output is a **single self-contained HTML file** (CSS and JavaScript inlined) that opens directly in any browser. When writing into an `outputDir`, existing generated Ixen output is rotated into numeric version directories (`1`, `2`, `3`, ...) before the new `index.html` is written.
+The output is a **single self-contained HTML file** (CSS and JavaScript inlined) that opens directly in any browser. When writing into an `outputDir`, existing generated Ixen output is rotated into numeric version directories (`1`, `2`, `3`, ...) before the new `index.html` is written. Pre-generated cheatsheet and infographic HTML files can be embedded inline near the bottom of the page.
 
 ## Installation
 
@@ -82,14 +82,17 @@ Arguments:
 | `personaDescription` | No | Custom voice directive overriding `persona` | —                     |
 | `credits`      | No       | Optional top-right byline before the timestamp | —            |
 | `headerContent` | No      | Raw HTML fragment rendered below the Ixen header | —                 |
-| `footerContent` | No      | Raw HTML fragment rendered after the body and cheatsheet | —           |
+| `footerContent` | No      | Raw HTML fragment rendered after the body and inline embeds | —           |
 | `outputDir`    | No       | Directory path                             | Global `outputDir`     |
 | `versionOutput` | No      | `true` or `false`                          | `true`                 |
 | `cheatsheetPath` | No     | Relative HTML path embedded near the bottom of the page | —           |
+| `infographicPath` | No    | Relative infographic HTML path embedded near the bottom of the page | —   |
+| `infographicPaths` | No   | Array of relative infographic HTML paths   | —                      |
+| `infographics` | No      | Array of `{path,title}` infographic embeds | —                      |
 
 Media URLs are never invented: only URLs you pass via `media` are embedded. Supported media types: zoomable images, embedded video (use embed-friendly URLs, e.g. `youtube.com/embed/<id>`), audio, and PDFs.
 
-For workflow composition, call `prepare` before upstream media generators write into the shared `outputDir`, then call `generate` with `versionOutput=false`. That preserves the previous page and its referenced images/audio/cheatsheet before new files overwrite root filenames.
+For workflow composition, call `prepare` before upstream media generators write into the shared `outputDir`, then call `generate` with `versionOutput=false`. That preserves the previous page and its referenced images/audio/cheatsheet/infographic files before new files overwrite root filenames.
 
 ### `prepare` — rotate an existing output directory
 
@@ -135,10 +138,13 @@ Arguments:
 | `personaDescription` | No | Custom voice directive overriding `persona`     | —                       |
 | `credits`      | No       | Optional top-right byline before the timestamp | —                       |
 | `headerContent` | No      | Raw HTML fragment rendered below the Ixen header | —                      |
-| `footerContent` | No      | Raw HTML fragment rendered after the body and cheatsheet | —                |
+| `footerContent` | No      | Raw HTML fragment rendered after the body and inline embeds | —                |
 | `outputDir`    | No       | Directory path                                  | Global `outputDir`      |
 | `versionOutput` | No      | Rotate previous generated output first          | `true`                  |
 | `cheatsheetPath` | No     | Relative HTML path embedded near the bottom of the page | —              |
+| `infographicPath` | No    | Relative infographic HTML path embedded near the bottom of the page | —   |
+| `infographicPaths` | No   | Array of relative infographic HTML paths        | —                       |
+| `infographics` | No      | Array of `{path,title}` infographic embeds      | —                       |
 
 The `content` body must use the component vocabulary below. Output is identical to `generate`: a `page` resource and an `html` file.
 
@@ -162,7 +168,7 @@ The page shell provides all CSS and JavaScript. Bodies (generated or saved) use 
 | ---------------- | ---------------------------------------------------------------------- |
 | Binary line      | `<p class="binary">01001001 ...</p>`                                    |
 | Narration        | `<p>... <strong>emphasis</strong> ...</p>`                              |
-| Whispered line   | `<p class="whisper">s l o w  d o w n</p>`                               |
+| Whispered line   | `<p class="whisper">waiting between interrupts</p>`                      |
 | Terminal line    | `<div class="term"><span class="host">zeus:~ $</span> <span class="cmd">uptime</span></div>` |
 | Inline output    | `<pre class="output">...</pre>`                                         |
 | Pop-up command   | `<button class="cmd popup-trigger" data-popup="id">cmd</button>` + `<aside class="popup" id="id" hidden>...<pre>...</pre></aside>` |
@@ -170,12 +176,14 @@ The page shell provides all CSS and JavaScript. Bodies (generated or saved) use 
 | Concept slide    | `<aside class="popup concept-slide" id="id" hidden>...terse slide content...</aside>` |
 | Concept notes    | `<aside class="popup concept-note" id="id" hidden>...direct explanatory text...</aside>` |
 | Zoomable image   | `<figure class="zoom"><img src="URL" alt=""><figcaption>...</figcaption></figure>` |
+| Infographic      | Passed as `infographicPath`, `infographicPaths`, or `infographics`; rendered by the Ixen shell |
 | Video            | `<div class="media video"><iframe src="URL" allowfullscreen></iframe></div>` |
 | Audio            | `<div class="media audio"><audio controls src="URL"></audio></div>`     |
 | PDF              | `<div class="media pdf"><iframe src="URL"></iframe></div>`              |
 | Chapter          | `<section class="chapter">...</section>`                                |
 
 Pop-up command windows recreate the original *I, Xen* "Close Window" overlays; images open in a lightbox; Escape closes everything.
+When the page contains concept slide or note popups, the shell adds top-right `all slides` and `all notes` buttons that open aggregate popups built from the same linked concept material.
 
 ## A note on the form
 
@@ -185,7 +193,7 @@ The generated page embeds the body HTML as-is. Review pages before publishing th
 
 ## How it works
 
-`generate` calls the configured inference endpoint directly via `fetch`. In `anthropic` mode: `POST /v1/messages` with adaptive thinking enabled automatically for Opus 4.x, Fable, and Mythos models. In `openai-compat` mode: `POST /v1/chat/completions` — works with Ollama, vLLM, Groq, Together, OpenRouter, and any OpenAI-compatible provider. `save` skips inference entirely and stores caller-provided content. Both methods produce the same outputs:
+`generate` calls the configured inference endpoint directly via `fetch`. In `anthropic` mode: `POST /v1/messages` with adaptive thinking enabled automatically for Opus 4.x, Fable, and Mythos models. In `openai-compat` mode: `POST /v1/chat/completions` — works with Ollama, vLLM, Groq, Together, OpenRouter, and any OpenAI-compatible provider. `save` skips inference entirely and stores caller-provided content. When `infographicPath`, `infographicPaths`, or `infographics` are supplied, the shell renders those relative HTML files in iframes before any cheatsheet embed. Both methods produce the same outputs:
 
 - `page` resource — JSON with title, narrator, body HTML, wordCount, and generation metadata
 - `html` file — the complete self-contained Ixen page

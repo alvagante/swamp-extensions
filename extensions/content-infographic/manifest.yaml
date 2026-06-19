@@ -1,0 +1,22 @@
+manifestVersion: 1
+name: "@alvagante/content-infographic"
+version: "2026.06.19.1"
+description: "Generate browser-ready infographic pages using OpenAI image generation. Produces an image, reliable HTML text shell, and relative output suitable for embedding in @alvagante/content-ixen."
+repository: "https://github.com/alvagante/swamp-extensions"
+paths:
+  base: manifest
+models:
+  - extensions/models/content_infographic.ts
+additionalFiles:
+  - README.md
+  - LICENSE.txt
+platforms:
+  - linux-x86_64
+  - darwin-aarch64
+labels:
+  - content
+  - infographic
+  - image
+  - html
+  - openai
+  - ai

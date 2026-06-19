@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@alvagante/content-music"
-version: "2026.06.16.1"
+version: "2026.06.19.1"
 description: "Generate songs from topics using Claude for lyrics and 1min.ai (Suno or Lyria) for audio. Part of the @alvagante content-media suite."
 repository: "https://github.com/alvagante/swamp-extensions"
 models:

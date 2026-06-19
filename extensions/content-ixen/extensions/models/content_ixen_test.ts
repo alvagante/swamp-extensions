@@ -47,7 +47,23 @@ Deno.test("save rotates previous Ixen output and renders version menu", async ()
 
   await save(
     {
-      content: "Second\n\n<p>second</p>",
+      content: `Second
+
+<p>second</p>
+<div class="concept-tools">
+  <button class="cmd popup-trigger concept-btn" data-popup="kernel-slide">slide</button>
+  <button class="cmd popup-trigger concept-btn" data-popup="kernel-notes">notes</button>
+</div>
+<aside class="popup concept-slide" id="kernel-slide" hidden>
+  <div class="popup-bar"><button class="popup-close">Close Window</button></div>
+  <h2>Kernel</h2>
+  <ul><li>Schedules runnable work.</li></ul>
+</aside>
+<aside class="popup concept-note" id="kernel-notes" hidden>
+  <div class="popup-bar"><button class="popup-close">Close Window</button></div>
+  <h2>Kernel notes</h2>
+  <p>The kernel arbitrates CPU time.</p>
+</aside>`,
       narrator: "smoke",
       topic: "Smoke",
       skillLevel: "intermediate",
@@ -60,6 +76,7 @@ Deno.test("save rotates previous Ixen output and renders version menu", async ()
       headerContent: '<p class="shell-header">custom header</p>',
       footerContent: '<p class="shell-footer">custom footer</p>',
       cheatsheetPath: "cheatsheet.html",
+      infographicPath: "infographic.html",
     },
     context,
   );
@@ -80,14 +97,26 @@ Deno.test("save rotates previous Ixen output and renders version menu", async ()
     "expected persona description metadata to be stored",
   );
   assert(
-    current.includes('<div class="credits">Made by Custom credits - 20'),
-    "expected custom credits and timestamp in top-right provenance",
+    current.includes(
+      '<a href="https://swamp-club.com/extensions/@alvagante/content-ixen" target="_blank" rel="noopener noreferrer">Generated with Swamp extension @alvagante/content-ixen</a>',
+    ),
+    "expected top-right provenance extension link",
   );
   assert(
-    !current.includes(
-      '<div class="credits">Made with Swamp extension @alvagante/content-ixen',
-    ),
-    "expected custom credits to replace default top-right provenance",
+    current.includes('<span class="byline">By Custom credits - 20'),
+    "expected custom credits and timestamp on second provenance line",
+  );
+  assert(
+    current.includes('data-popup="ixen-all-slides">all slides</button>'),
+    "expected all-slides top button",
+  );
+  assert(
+    current.includes('data-popup="ixen-all-notes">all notes</button>'),
+    "expected all-notes top button",
+  );
+  assert(
+    current.includes('buildConceptIndexPopup("concept-slide"'),
+    "expected aggregate slide popup builder",
   );
   assert(current.includes("custom header"), "expected custom header content");
   assert(current.includes("custom footer"), "expected custom footer content");
@@ -96,12 +125,20 @@ Deno.test("save rotates previous Ixen output and renders version menu", async ()
     "expected inline cheatsheet iframe",
   );
   assert(
+    current.includes('<iframe src="./infographic.html"'),
+    "expected inline infographic iframe",
+  );
+  assert(
     current.indexOf("custom header") < current.indexOf("<header>"),
     "expected custom header before built-in Ixen title header",
   );
   assert(
+    current.indexOf("infographic.html") < current.indexOf("cheatsheet.html"),
+    "expected inline infographic before inline cheatsheet",
+  );
+  assert(
     current.indexOf("custom footer") > current.indexOf("cheatsheet.html"),
-    "expected custom footer after inline cheatsheet",
+    "expected custom footer after inline embeds",
   );
   assert(current.includes("ixen-version-select"), "expected version selector");
   assert(previous.includes("first"), "expected previous page to rotate");
