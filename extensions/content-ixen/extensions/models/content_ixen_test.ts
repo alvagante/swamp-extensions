@@ -100,19 +100,19 @@ Deno.test("save rotates previous Ixen output and renders version menu", async ()
     current.includes(
       '<a href="https://swamp-club.com/extensions/@alvagante/content-ixen" target="_blank" rel="noopener noreferrer">Generated with Swamp extension @alvagante/content-ixen</a>',
     ),
-    "expected top-right provenance extension link",
+    "expected footer provenance extension link",
   );
   assert(
-    current.includes('<span class="byline">By Custom credits - 20'),
-    "expected custom credits and timestamp on second provenance line",
+    current.includes('<span class="byline">By Custom credits — 20'),
+    "expected custom credits and timestamp in byline",
   );
   assert(
-    current.includes('data-popup="ixen-all-slides">all slides</button>'),
-    "expected all-slides top button",
+    current.includes('data-popup="ixen-all-slides">Slides</button>'),
+    "expected Slides quick-nav button",
   );
   assert(
-    current.includes('data-popup="ixen-all-notes">all notes</button>'),
-    "expected all-notes top button",
+    current.includes('data-popup="ixen-all-notes">Notes</button>'),
+    "expected Notes quick-nav button",
   );
   assert(
     current.includes('buildConceptIndexPopup("concept-slide"'),

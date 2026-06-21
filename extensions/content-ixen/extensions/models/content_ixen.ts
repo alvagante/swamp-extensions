@@ -26,6 +26,7 @@ type MusicTrack = z.infer<typeof MusicTrackSchema>;
 const InfographicItemSchema = z.object({
   path: z.string(),
   title: z.string().optional(),
+  prompt: z.string().optional(),
 });
 type InfographicItem = z.infer<typeof InfographicItemSchema>;
 
@@ -113,6 +114,7 @@ const PageSchema = z.object({
   infographicPath: z.string().optional(),
   infographicPaths: z.array(z.string()).optional(),
   infographics: z.array(InfographicItemSchema).optional(),
+  beginnerGuideContent: z.string().optional(),
   generatedAt: z.string(),
 });
 
@@ -195,6 +197,76 @@ function supportsAdaptiveThinking(modelId: string): boolean {
     modelId.includes("fable") ||
     modelId.includes("mythos")
   );
+}
+
+async function generateBeginnerGuide(
+  apiFormat: ApiFormat,
+  apiKey: string | undefined,
+  baseUrl: string,
+  modelId: string,
+  topic: string,
+  details?: string,
+  concepts?: Concept[],
+  logger?: {
+    info: (msg: string, props?: Record<string, unknown>) => void;
+    error: (msg: string, props?: Record<string, unknown>) => void;
+  },
+): Promise<string | undefined> {
+  const conceptLines = (concepts ?? []).map((c) =>
+    c.details ? `- ${c.name}: ${c.details}` : `- ${c.name}`
+  ).join("\n");
+  const systemPrompt =
+    `You are writing a short beginner's introduction to a technical topic for display in a popup on a web page.
+
+Audience: people with general IT knowledge (they know what servers, software, processes, and networks are) but with no prior exposure to the specific topic being introduced. Assume zero domain-specific knowledge.
+
+Your job: explain what this thing is, why it exists, what problem it solves, and the basic mental model a newcomer needs. Be concrete and friendly without being condescending. No jargon without a brief explanation. No Ixen voice, no first-person narrator, no poetic metaphors — plain, direct, welcoming prose.
+
+Output format (strict):
+- Raw HTML fragment using only <p>, <ul>, <li>, <strong>, <em> tags
+- No <html>, <head>, <body>, <h1>, <script>, <style> tags
+- No markdown, no code fences, no meta-commentary`;
+
+  const topicLine = `Topic: ${topic}`;
+  const detailsLine = details ? `\nContext: ${details}` : "";
+  const conceptsLine = conceptLines
+    ? `\nKey concepts covered:\n${conceptLines}`
+    : "";
+  const userMessage =
+    `${topicLine}${detailsLine}${conceptsLine}\n\nWrite the beginner's introduction.`;
+
+  try {
+    const { url, headers, body } = buildRequest(
+      apiFormat,
+      apiKey,
+      baseUrl,
+      modelId,
+      systemPrompt,
+      userMessage,
+      2000,
+    );
+    const response = await fetch(url, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(body),
+    });
+    if (!response.ok) {
+      const errorBody = await response.text();
+      logger?.error("Beginner guide generation failed, omitting guide", {
+        status: response.status,
+        error: errorBody,
+      });
+      return undefined;
+    }
+    const json = await response.json();
+    const { text } = extractContent(apiFormat, json);
+    return text || undefined;
+  } catch (err) {
+    logger?.error("Beginner guide generation threw, omitting guide", {
+      error: String(err),
+    });
+    return undefined;
+  }
 }
 
 function buildRequest(
@@ -598,11 +670,11 @@ header .credits .byline { color: var(--dim); font-weight: normal; display: block
   max-width: 13rem; color: var(--ink); background: #fff;
   border: 1px solid #ccc; padding: 0.2rem 0.3rem;
 }
-.concept-index {
+.ixen-quick-nav {
   display: flex; justify-content: flex-end; gap: 0.55rem;
   margin-top: 0.45rem;
 }
-.concept-index .cmd { font-size: 0.72rem; }
+.ixen-quick-nav .cmd { font-size: 0.72rem; }
 p { margin: 0.45em 0; }
 p strong { color: #000; }
 .binary { font-family: "Courier New", Courier, monospace; letter-spacing: 0.08em; color: var(--ink); }
@@ -618,11 +690,12 @@ p strong { color: #000; }
   margin: 1.3em 0 0.25em; color: var(--dim);
 }
 .term .cmd { color: var(--red); font-weight: bold; }
-button.cmd {
+button.cmd, a.cmd {
   background: none; border: none; padding: 0; cursor: pointer;
   font: inherit; color: var(--red); font-weight: bold;
   text-decoration: underline dotted;
 }
+a.cmd { display: inline; }
 pre { font-family: "Courier New", Courier, monospace; font-size: 0.85rem; color: #333; overflow-x: auto; margin: 0.3em 0 1em; }
 pre.output { padding-left: 1.5em; }
 .popup {
@@ -692,6 +765,10 @@ section.chapter { clear: both; margin: 3rem 0; }
   font-family: "Courier New", Courier, monospace; font-size: 0.78rem;
   color: var(--dim); font-weight: normal; margin: 0 0 0.45rem;
 }
+figure.ixen-infographic-img { margin: 0; }
+figure.ixen-infographic-img img { width: 100%; cursor: zoom-in; display: block; }
+.ixen-infographic-prompt-text { white-space: pre-wrap; font-size: 0.85rem; }
+.ixen-infographic-section h2 button.cmd { font-size: 0.75rem; vertical-align: middle; }
 .concept { clear: both; margin: 2.8rem 0; }
 .concept-tools { display: flex; flex-wrap: wrap; gap: 0.55rem; margin: 0.7rem 0 1rem; }
 .concept-btn { font-size: 0.8rem; }
@@ -706,6 +783,17 @@ section.chapter { clear: both; margin: 3rem 0; }
   padding-top: 1rem;
 }
 .concept-index-item:first-of-type { border-top: 0; margin-top: 0; padding-top: 0; }
+.ixen-provenance-footer {
+  clear: both; margin: 3rem 0 0; padding-top: 0.7rem;
+  border-top: 1px solid #eee;
+  font-size: 0.72rem; color: var(--dim); text-align: center;
+}
+.ixen-provenance-footer a { color: var(--dim); text-decoration: underline dotted; }
+.ixen-beginner-bar { margin-top: 0.45rem; }
+.beginner-guide h2 { margin: 0.5rem 0 0.75rem; }
+.beginner-guide p { margin: 0.75rem 0; }
+.beginner-guide ul { margin: 0.5rem 0 0.75rem 1.2rem; padding: 0; }
+.beginner-guide li { margin: 0.3rem 0; }
 `;
 
 const MUSIC_PLAYER_CSS = `
@@ -729,6 +817,7 @@ const MUSIC_PLAYER_CSS = `
 .ixen-play-label { font-size: 0.82rem; color: #888; }
 /* fixed bottom player */
 #ixen-player {
+  display: none;
   position: fixed; bottom: 0; left: 0; right: 0;
   background: #0e0e0e;
   border-top: 2px solid #c00;
@@ -892,7 +981,7 @@ const PAGE_JS = `
 
 const MUSIC_PLAYER_JS = `
 (function(){
-var T=JSON.parse(document.getElementById('ixen-tracks-data').textContent);
+function runPlayer(T){
 var au=document.getElementById('ixen-audio');
 var playBtn=document.getElementById('ixen-play-btn');
 var prevBtn=document.getElementById('ixen-prev-btn');
@@ -994,9 +1083,20 @@ if(T.length>1){
   if(trkBtn)trkBtn.hidden=true;
 }
 
+document.getElementById('ixen-player').style.display='';
 document.body.style.paddingBottom='4.5rem';
 loadIdx(0,false);
 doPlay();
+}
+var baked=JSON.parse(document.getElementById('ixen-tracks-data').textContent);
+if(baked.length>0){
+  runPlayer(baked);
+}else{
+  fetch('./ixen-soundtrack.json')
+    .then(function(r){return r.ok?r.json():null;})
+    .then(function(d){if(d&&d.tracks&&d.tracks.length>0)runPlayer(d.tracks);})
+    .catch(function(){});
+}
 })();
 `;
 
@@ -1043,7 +1143,7 @@ function rootLocalFile(path: string): string | undefined {
 }
 
 function referencedOutputFiles(html: string): string[] {
-  const files = new Set<string>(["index.html"]);
+  const files = new Set<string>(["index.html", "ixen-soundtrack.json"]);
   for (const match of html.matchAll(/\b(?:src|href)=["']\.\/([^"']+)["']/g)) {
     const file = rootLocalFile(match[1]);
     if (file) files.add(file);
@@ -1151,40 +1251,50 @@ function renderMusicPlayer(tracks: MusicTrack[]): string {
   <div id="ixen-tracklist-panel" hidden></div>`;
 }
 
-function renderProvenance(
+function renderByline(
   credit: string | undefined,
   timestamp: string,
 ): string {
-  const byline = credit?.trim()
-    ? `By ${escapeHtml(credit.trim())} - ${timestamp}`
+  const text = credit?.trim()
+    ? `By ${escapeHtml(credit.trim())} — ${timestamp}`
     : timestamp;
-  return `<a href="https://swamp-club.com/extensions/@alvagante/content-ixen" target="_blank" rel="noopener noreferrer">Generated with Swamp extension @alvagante/content-ixen</a><span class="byline">${byline}</span>`;
+  return `<span class="byline">${text}</span>`;
+}
+
+function renderFooterProvenance(): string {
+  return `<footer class="ixen-provenance-footer"><a href="https://swamp-club.com/extensions/@alvagante/content-ixen" target="_blank" rel="noopener noreferrer">Generated with Swamp extension @alvagante/content-ixen</a></footer>`;
 }
 
 function hasPopupClass(content: string, className: string): boolean {
   return new RegExp(`class=["'][^"']*\\b${className}\\b`).test(content);
 }
 
-function renderConceptIndex(content: string): string {
-  const hasSlides = hasPopupClass(content, "concept-slide");
-  const hasNotes = hasPopupClass(content, "concept-note");
-  if (!hasSlides && !hasNotes) return "";
-
-  const buttons: string[] = [];
-  if (hasSlides) {
-    buttons.push(
-      '<button class="cmd popup-trigger" data-popup="ixen-all-slides">all slides</button>',
+function renderQuickNav(
+  content: string,
+  hasCheatsheet: boolean,
+  hasInfographic: boolean,
+): string {
+  const items: string[] = [];
+  if (hasCheatsheet) {
+    items.push('<a class="cmd" href="#ixen-cheatsheet">Cheatsheet</a>');
+  }
+  if (hasInfographic) {
+    items.push('<a class="cmd" href="#ixen-infographic">Infographic</a>');
+  }
+  if (hasPopupClass(content, "concept-slide")) {
+    items.push(
+      '<button class="cmd popup-trigger" data-popup="ixen-all-slides">Slides</button>',
     );
   }
-  if (hasNotes) {
-    buttons.push(
-      '<button class="cmd popup-trigger" data-popup="ixen-all-notes">all notes</button>',
+  if (hasPopupClass(content, "concept-note")) {
+    items.push(
+      '<button class="cmd popup-trigger" data-popup="ixen-all-notes">Notes</button>',
     );
   }
-
+  if (items.length === 0) return "";
   return `
-    <div class="concept-index">
-      ${buttons.join("\n      ")}
+    <div class="ixen-quick-nav">
+      ${items.join("\n      ")}
     </div>`;
 }
 
@@ -1202,6 +1312,10 @@ function resolveInfographics(
   return [...new Set(paths)].map((path) => ({ path }));
 }
 
+function isImagePath(path: string): boolean {
+  return /\.(png|jpe?g|webp|gif|avif|svg)$/i.test(path.split(/[?#]/)[0] ?? "");
+}
+
 function renderInfographicSection(page: IxenPage): string {
   const infographics = resolveInfographics(
     page.infographicPath,
@@ -1210,21 +1324,53 @@ function renderInfographicSection(page: IxenPage): string {
   );
   if (infographics.length === 0) return "";
 
+  const multi = infographics.length > 1;
+  const popups: string[] = [];
+
   const frames = infographics.map((item, index) => {
     const frameTitle = item.title ?? `Infographic ${index + 1}`;
+    const popupId = `ixen-infographic-prompt-${index}`;
+
+    let promptBtn = "";
+    if (item.prompt) {
+      promptBtn =
+        ` <button class="cmd popup-trigger" data-popup="${popupId}">prompt</button>`;
+      popups.push(
+        `<aside class="popup ixen-infographic-prompt-popup" id="${popupId}" hidden>` +
+          `<div class="popup-bar"><button class="popup-close">Close Window</button></div>` +
+          `<h2>Image prompt</h2>` +
+          `<pre class="ixen-infographic-prompt-text">${
+            escapeHtml(item.prompt)
+          }</pre>` +
+          `</aside>`,
+      );
+    }
+
+    const mediaHtml = isImagePath(item.path)
+      ? `<figure class="zoom ixen-infographic-img"><img src="./${
+        escapeHtml(item.path)
+      }" alt="${escapeHtml(frameTitle)}"></figure>`
+      : `<iframe src="./${escapeHtml(item.path)}" title="${
+        escapeHtml(frameTitle)
+      }" loading="lazy"></iframe>`;
+
     return `
   <div class="ixen-infographic-frame">
-    ${infographics.length > 1 ? `<h3>${escapeHtml(frameTitle)}</h3>` : ""}
-    <iframe src="./${escapeHtml(item.path)}" title="${
-      escapeHtml(frameTitle)
-    }" loading="lazy"></iframe>
+    ${multi ? `<h3>${escapeHtml(frameTitle)}${promptBtn}</h3>` : ""}
+    ${mediaHtml}
   </div>`;
   }).join("");
 
   return `
-<section class="ixen-infographic-section" aria-label="Infographic">
-  <h2>${infographics.length > 1 ? "Infographics" : "Infographic"}</h2>${frames}
-</section>`;
+<section id="ixen-infographic" class="ixen-infographic-section" aria-label="Infographic">
+  <h2>${multi ? "Infographics" : "Infographic"}${
+    !multi && infographics[0]?.prompt
+      ? ` <button class="cmd popup-trigger" data-popup="ixen-infographic-prompt-0">prompt</button>`
+      : ""
+  }</h2>${frames}
+</section>
+${popups.join("\n")}`
+    .replace(/^\n/, "");
 }
 
 function renderPage(
@@ -1233,15 +1379,28 @@ function renderPage(
 ): string {
   const title = escapeHtml(page.title);
   const provenanceTs = escapeHtml(formatTimestamp(page.generatedAt));
-  const provenance = renderProvenance(page.credits, provenanceTs);
+  const byline = renderByline(page.credits, provenanceTs);
   const tracks = page.musicTracks ?? [];
-  const playerCss = tracks.length > 0 ? MUSIC_PLAYER_CSS : "";
-  const playerHtml = tracks.length > 0 ? renderMusicPlayer(tracks) : "";
-  const playerJs = tracks.length > 0
-    ? `<script>${MUSIC_PLAYER_JS}</script>`
-    : "";
+  const playerCss = MUSIC_PLAYER_CSS;
+  const playerHtml = renderMusicPlayer(tracks);
+  const playerJs = `<script>${MUSIC_PLAYER_JS}</script>`;
   const versionMenu = renderVersionMenu(versions);
-  const conceptIndex = renderConceptIndex(page.content);
+  const infographics = resolveInfographics(
+    page.infographicPath,
+    page.infographicPaths,
+    page.infographics,
+  );
+  const quickNav = renderQuickNav(
+    page.content,
+    !!page.cheatsheetPath,
+    infographics.length > 0,
+  );
+  const beginnerBar = page.beginnerGuideContent
+    ? `\n    <div class="ixen-beginner-bar"><button class="cmd popup-trigger" data-popup="ixen-beginner-guide">Beginner's intro</button></div>`
+    : "";
+  const beginnerPopup = page.beginnerGuideContent
+    ? `\n<aside class="popup beginner-guide" id="ixen-beginner-guide" hidden>\n  <div class="popup-bar"><button class="popup-close">Close Window</button></div>\n  <h2>Beginner's intro</h2>\n  ${page.beginnerGuideContent.trim()}\n</aside>`
+    : "";
   const headerContent = page.headerContent?.trim()
     ? `\n<section class="ixen-extra-header">\n${page.headerContent.trim()}\n</section>`
     : "";
@@ -1250,7 +1409,7 @@ function renderPage(
     : "";
   const cheatsheetSection = page.cheatsheetPath
     ? `
-<section class="ixen-cheatsheet-section" aria-label="Cheatsheet">
+<section id="ixen-cheatsheet" class="ixen-cheatsheet-section" aria-label="Cheatsheet">
   <h2>Cheatsheet</h2>
   <iframe src="./${
       escapeHtml(page.cheatsheetPath)
@@ -1271,7 +1430,7 @@ function renderPage(
 ${headerContent}
 <header>
   <h1>${title}</h1>
-  <div class="credits">${provenance}${versionMenu}${conceptIndex}</div>
+  <div class="credits">${byline}${versionMenu}${quickNav}${beginnerBar}</div>
 </header>
 <main>
 ${page.content}
@@ -1279,9 +1438,10 @@ ${page.content}
 ${infographicSection}
 ${cheatsheetSection}
 ${footerContent}
+${renderFooterProvenance()}
 <script>${PAGE_JS}</script>
 ${playerHtml}
-${playerJs}
+${playerJs}${beginnerPopup}
 </body>
 </html>
 `;
@@ -1364,7 +1524,7 @@ async function storePage(
  */
 export const model = {
   type: "@alvagante/content-ixen",
-  version: "2026.06.19.1",
+  version: "2026.06.21.2",
   upgrades: [
     {
       toVersion: "2026.06.15.1",
@@ -1412,6 +1572,18 @@ export const model = {
       toVersion: "2026.06.19.1",
       description:
         "Add infographicPath, infographicPaths, and infographics[] inputs; render provided infographic HTML files inline near the bottom of the page; render two-line top-right provenance with a Swamp Club extension link; add all-slides and all-notes buttons that open aggregate popups for existing concept slide and note popups; replace letter-spaced whisper text with italic serif emphasis.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.21.1",
+      description:
+        "Add includeBeginnerGuide option on generate (triggers a secondary LLM call for a plain-prose IT-beginner intro) and beginnerGuideContent on save (caller-supplied HTML). When present, a 'Beginner's intro' button appears in the page header opening the guide in a popup. Restructure page header: move 'Generated with Swamp extension' attribution to a footer; top-right now shows byline + version menu + quick-nav row (Cheatsheet/Infographic as anchor links, Slides/Notes as popup triggers). Add id='ixen-cheatsheet' and id='ixen-infographic' to their sections.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.21.2",
+      description:
+        "Add prompt field to InfographicItem; image-path infographics (png/jpg/webp/gif/avif/svg) now render as zoomable lightbox images instead of iframes; prompt is hidden by default and accessible via a 'prompt' popup button next to the section heading (single) or frame title (multiple).",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -1514,6 +1686,9 @@ export const model = {
         infographics: z.array(InfographicItemSchema).optional().describe(
           "Infographic embeds with relative HTML path and optional title.",
         ),
+        includeBeginnerGuide: z.boolean().default(false).describe(
+          "When true, generates a plain-prose beginner's introduction to the topic and embeds it as a popup accessible via a 'Beginner's intro' button at the top of the page. Audience: IT-literate readers with no prior knowledge of the specific topic.",
+        ),
       }),
       execute: async (
         args: {
@@ -1541,6 +1716,7 @@ export const model = {
           infographicPath?: string;
           infographicPaths?: string[];
           infographics?: InfographicItem[];
+          includeBeginnerGuide?: boolean;
         },
         context: ModelContext,
       ) => {
@@ -1635,6 +1811,23 @@ export const model = {
           args.musicLyrics,
         );
 
+        let beginnerGuideContent: string | undefined;
+        if (args.includeBeginnerGuide === true) {
+          context.logger.info("Generating beginner guide for {topic}", {
+            topic: args.topic,
+          });
+          beginnerGuideContent = await generateBeginnerGuide(
+            apiFormat,
+            apiKey,
+            baseUrl,
+            args.model,
+            args.topic,
+            args.details,
+            resolveConcepts(args.concepts, args.mediaItems),
+            context.logger,
+          );
+        }
+
         return await storePage(
           context,
           {
@@ -1664,6 +1857,7 @@ export const model = {
               args.infographicPaths,
               args.infographics,
             ),
+            beginnerGuideContent,
             generatedAt: new Date().toISOString(),
           },
           args.outputDir,
@@ -1713,6 +1907,9 @@ export const model = {
         infographics: z.array(InfographicItemSchema).optional().describe(
           "Infographic embeds with relative HTML path and optional title.",
         ),
+        beginnerGuideContent: z.string().optional().describe(
+          "Pre-generated HTML fragment for the beginner's intro popup. When provided, a 'Beginner's intro' button appears at the top of the page opening this content in a popup.",
+        ),
       }),
       execute: async (
         args: {
@@ -1742,6 +1939,7 @@ export const model = {
           infographicPath?: string;
           infographicPaths?: string[];
           infographics?: InfographicItem[];
+          beginnerGuideContent?: string;
         },
         context: ModelContext,
       ) => {
@@ -1794,6 +1992,7 @@ export const model = {
               args.infographicPaths,
               args.infographics,
             ),
+            beginnerGuideContent: args.beginnerGuideContent,
             generatedAt: new Date().toISOString(),
           },
           args.outputDir,
