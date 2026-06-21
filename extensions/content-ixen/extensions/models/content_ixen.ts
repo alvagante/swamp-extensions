@@ -1083,7 +1083,7 @@ if(T.length>1){
   if(trkBtn)trkBtn.hidden=true;
 }
 
-document.getElementById('ixen-player').style.display='';
+document.getElementById('ixen-player').style.display='block';
 document.body.style.paddingBottom='4.5rem';
 loadIdx(0,false);
 doPlay();
