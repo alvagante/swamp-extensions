@@ -30,6 +30,12 @@ const InfographicItemSchema = z.object({
 });
 type InfographicItem = z.infer<typeof InfographicItemSchema>;
 
+const CardItemSchema = z.object({
+  path: z.string(),
+  title: z.string().optional(),
+});
+type CardItem = z.infer<typeof CardItemSchema>;
+
 const ConceptSchema = z.object({
   name: z.string().min(1),
   details: z.string().optional(),
@@ -114,6 +120,7 @@ const PageSchema = z.object({
   infographicPath: z.string().optional(),
   infographicPaths: z.array(z.string()).optional(),
   infographics: z.array(InfographicItemSchema).optional(),
+  cards: z.array(CardItemSchema).optional(),
   beginnerGuideContent: z.string().optional(),
   generatedAt: z.string(),
 });
@@ -413,21 +420,6 @@ first-person narrator, no fancy language):
     prose here. This is where details live.</p>
   </aside>
 
-### Inline art — SVG (preferred visual; no external URL needed)
-
-Generate SVG directly inside the page to visualise the narrator's world:
-  <figure class="ixen-art">
-    <svg viewBox="0 0 480 200" xmlns="http://www.w3.org/2000/svg">
-      <!-- draw layers, processes, state machines, network flows — whatever
-           the narrator's subject demands. Use stroke="#c00" for accent. -->
-    </svg>
-    <figcaption>The union filesystem that is my body.</figcaption>
-  </figure>
-
-SVG tips: use text elements for labels, rect/circle/path for shapes, <line>
-or <polyline> for connections. Keep it legible at 480px wide. Generate
-meaningful diagrams — architecture, flow, anatomy — not decorations.
-
 ### Zoomable images (caller-supplied paths)
 
 Images float beside the text. Alternate float-left / float-right manually,
@@ -446,7 +438,12 @@ Float left, large (clears both floats after it):
 Spread images across the page — not all at the top. Each should arrive where
 the narration earns it.
 
-NEVER invent a path. If no images are provided, use inline SVG for all visuals.
+Concept card (portrait playing card; when a card path is supplied for a concept,
+place it as a small float on the OPPOSITE side from the concept image, immediately
+after the concept-tools buttons):
+  <figure class="zoom float-right ixen-card-img small"><img src="./concept-1-card.png" alt="Concept name card"><figcaption>…</figcaption></figure>
+
+NEVER invent a path. If no images are provided, omit image elements entirely.
 
 ### Other embedded media (only when a real URL is supplied)
 
@@ -498,11 +495,9 @@ What makes this form work:
   liberation inside them is the narrator's own.
 - The page breathes in fragments. Short lines. White space. Sudden emphasis.
   Let concepts arrive as glimpses of underlying logic, not lectures.
-- Visuals are first-class. Generate at least one inline SVG that depicts
-  something central to the narrator's anatomy or experience — its layers,
-  its state transitions, its network topology, its memory map, whatever
-  fits. Make it meaningful, not decorative. The reader should learn
-  something from looking at it.
+- Visuals are first-class. Use the caller-supplied images fully — place them
+  where the narration earns them, not all at the top. Images are precise
+  depictions of the narrator's world; let the text respond to what they show.
 - Concept popups are where explanation lives. The main Ixen text should not
   explain; it should inspire, suggest, unsettle, and reveal how the narrator
   lives the topic. Explanatory popups must be plain, direct, informative text
@@ -546,6 +541,7 @@ function buildUserMessage(
   media?: string,
   mediaItems?: MediaItem[],
   concepts?: Concept[],
+  cards?: CardItem[],
 ): string {
   const resolvedConcepts = resolveConcepts(concepts, mediaItems);
   const items = resolveMediaItems(media, mediaItems);
@@ -559,20 +555,27 @@ function buildUserMessage(
         ? `   image path: ./${concept.imagePath}\n   image alt text (use exactly this): ${
           concept.imagePrompt ?? concept.imagePath
         }`
-        : "   no external image path supplied; use inline SVG if a visual is needed";
+        : "   no external image path supplied; omit image elements for this concept";
+      const card = cards?.[index];
+      const cardLine = card
+        ? `\n   card image: ./${card.path} — place with class="zoom ixen-card-img small float-${
+          index % 2 === 0 ? "right" : "left"
+        }" immediately after the concept-tools buttons, on the opposite side from the concept image`
+        : "";
       const detailLine = concept.details
         ? `\n   concept details:\n${concept.details}`
         : "";
-      return `${index + 1}. ${concept.name}\n${imageLine}${detailLine}`;
+      return `${index + 1}. ${concept.name}\n${imageLine}${cardLine}${detailLine}`;
     });
     parts.push(
       `Concepts to cover, in order:\n${lines.join("\n\n")}\n\n` +
         `For each concept, produce all of these:\n` +
         `- A zoomable image if an image path is supplied. The first concept image should be prominent near the opening; later concept images should sit beside their concept text. Alternate float-left / float-right.\n` +
+        `- A card image if a card path is supplied (use the exact class specified). Place it immediately after the concept-tools buttons on the specified side. Do not invent card paths.\n` +
         `- A compact slide popup using class="popup concept-slide". It should feel like one useful technical slide, with a short heading and terse bullets.\n` +
         `- A more verbose explanatory popup using class="popup concept-note". This popup must be informative, direct, and non-Ixen: no first-person narrator, no poetic metaphor, no theatrical voice.\n` +
         `- Short Ixen glue text around it: fragmented, first-person, philosophical, inspiring, technically exact, with zero or more terminal commands and command-output popups where useful.\n` +
-        `Use unique popup ids for every concept. Do not invent image paths.`,
+        `Use unique popup ids for every concept. Do not invent image paths or card paths.`,
     );
     return parts.join("\n\n");
   }
@@ -717,8 +720,6 @@ figure.zoom.float-right { float: right; width: min(340px, 45%); margin: 0.3rem 0
 figure.zoom.small.float-left, figure.zoom.small.float-right { width: min(220px, 35%); }
 figure.zoom.large.float-left, figure.zoom.large.float-right { width: min(520px, 60%); }
 figure.zoom.large:not(.float-left):not(.float-right) { clear: both; }
-figure.ixen-art { clear: both; margin: 2.5rem 0; }
-figure.ixen-art svg { max-width: 100%; height: auto; display: block; background: #fafafa; border: 1px solid #e8e8e8; }
 figcaption, .media-caption { font-size: 0.75rem; color: var(--dim); margin-top: 0.3rem; }
 .media { clear: both; margin: 2rem 0; }
 .media.video iframe { width: 100%; aspect-ratio: 16 / 9; border: 0; }
@@ -794,6 +795,26 @@ figure.ixen-infographic-img img { width: 100%; cursor: zoom-in; display: block; 
 .beginner-guide p { margin: 0.75rem 0; }
 .beginner-guide ul { margin: 0.5rem 0 0.75rem 1.2rem; padding: 0; }
 .beginner-guide li { margin: 0.3rem 0; }
+button.ixen-accent-btn {
+  background: var(--red); color: #fff; border: none; cursor: pointer;
+  font-family: "Courier New", Courier, monospace; font-size: 0.75rem; font-weight: bold;
+  padding: 0.3rem 0.8rem; letter-spacing: 0.06em; text-transform: uppercase;
+}
+button.ixen-accent-btn:hover { background: #900; }
+figure.zoom.ixen-card-img img {
+  box-shadow: 2px 4px 14px rgba(0,0,0,0.28); border: 1px solid #ccc; border-radius: 3px;
+}
+.ixen-card-deck-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 1.2rem; padding: 0.5rem 0;
+}
+.ixen-card-deck-grid figure.zoom {
+  margin: 0; width: 100% !important; float: none !important;
+}
+.ixen-card-deck-grid figure.zoom img {
+  box-shadow: 2px 4px 12px rgba(0,0,0,0.22); border: 1px solid #ccc; border-radius: 3px;
+}
+.ixen-card-deck-grid figcaption { text-align: center; }
 `;
 
 const MUSIC_PLAYER_CSS = `
@@ -1269,12 +1290,29 @@ function hasPopupClass(content: string, className: string): boolean {
   return new RegExp(`class=["'][^"']*\\b${className}\\b`).test(content);
 }
 
+function renderCardDeckPopup(cards: CardItem[]): string {
+  if (cards.length === 0) return "";
+  const items = cards.map((card, i) => {
+    const title = escapeHtml(card.title ?? `Card ${i + 1}`);
+    return `  <figure class="zoom">\n    <img src="./${
+      escapeHtml(card.path)
+    }" alt="${title}">\n    <figcaption>${title}</figcaption>\n  </figure>`;
+  }).join("\n");
+  return `\n<aside class="popup" id="ixen-card-deck" hidden>\n  <div class="popup-bar"><button class="popup-close">Close Window</button></div>\n  <h2>Card Deck</h2>\n  <div class="ixen-card-deck-grid">\n${items}\n  </div>\n</aside>`;
+}
+
 function renderQuickNav(
   content: string,
   hasCheatsheet: boolean,
   hasInfographic: boolean,
+  hasCards: boolean,
 ): string {
   const items: string[] = [];
+  if (hasCards) {
+    items.push(
+      '<button class="ixen-accent-btn popup-trigger" data-popup="ixen-card-deck">Card Deck</button>',
+    );
+  }
   if (hasCheatsheet) {
     items.push('<a class="cmd" href="#ixen-cheatsheet">Cheatsheet</a>');
   }
@@ -1390,13 +1428,16 @@ function renderPage(
     page.infographicPaths,
     page.infographics,
   );
+  const cards = page.cards ?? [];
   const quickNav = renderQuickNav(
     page.content,
     !!page.cheatsheetPath,
     infographics.length > 0,
+    cards.length > 0,
   );
+  const cardDeckPopup = renderCardDeckPopup(cards);
   const beginnerBar = page.beginnerGuideContent
-    ? `\n    <div class="ixen-beginner-bar"><button class="cmd popup-trigger" data-popup="ixen-beginner-guide">Beginner's intro</button></div>`
+    ? `\n    <div class="ixen-beginner-bar"><button class="ixen-accent-btn popup-trigger" data-popup="ixen-beginner-guide">Beginner's intro</button></div>`
     : "";
   const beginnerPopup = page.beginnerGuideContent
     ? `\n<aside class="popup beginner-guide" id="ixen-beginner-guide" hidden>\n  <div class="popup-bar"><button class="popup-close">Close Window</button></div>\n  <h2>Beginner's intro</h2>\n  ${page.beginnerGuideContent.trim()}\n</aside>`
@@ -1441,7 +1482,7 @@ ${footerContent}
 ${renderFooterProvenance()}
 <script>${PAGE_JS}</script>
 ${playerHtml}
-${playerJs}${beginnerPopup}
+${playerJs}${beginnerPopup}${cardDeckPopup}
 </body>
 </html>
 `;
@@ -1524,7 +1565,7 @@ async function storePage(
  */
 export const model = {
   type: "@alvagante/content-ixen",
-  version: "2026.06.21.2",
+  version: "2026.06.22.1",
   upgrades: [
     {
       toVersion: "2026.06.15.1",
@@ -1584,6 +1625,12 @@ export const model = {
       toVersion: "2026.06.21.2",
       description:
         "Add prompt field to InfographicItem; image-path infographics (png/jpg/webp/gif/avif/svg) now render as zoomable lightbox images instead of iframes; prompt is hidden by default and accessible via a 'prompt' popup button next to the section heading (single) or frame title (multiple).",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.22.1",
+      description:
+        "Add cards[] input (per-concept card images from @alvagante/content-card, matched by index). Each card renders alongside its concept opposite the concept image. A 'Card Deck' accent button opens a popup grid of all cards. Beginner's intro button also uses the new accent style. Remove SVG generation instructions — images are caller-supplied only.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -1686,6 +1733,9 @@ export const model = {
         infographics: z.array(InfographicItemSchema).optional().describe(
           "Infographic embeds with relative HTML path and optional title.",
         ),
+        cards: z.array(CardItemSchema).optional().describe(
+          "Per-concept card images generated by @alvagante/content-card. Matched by index to the concepts array. Each card is shown alongside its concept section and a 'Card Deck' button at the top opens a popup grid of all cards.",
+        ),
         includeBeginnerGuide: z.boolean().default(false).describe(
           "When true, generates a plain-prose beginner's introduction to the topic and embeds it as a popup accessible via a 'Beginner's intro' button at the top of the page. Audience: IT-literate readers with no prior knowledge of the specific topic.",
         ),
@@ -1716,6 +1766,7 @@ export const model = {
           infographicPath?: string;
           infographicPaths?: string[];
           infographics?: InfographicItem[];
+          cards?: CardItem[];
           includeBeginnerGuide?: boolean;
         },
         context: ModelContext,
@@ -1750,6 +1801,7 @@ export const model = {
           args.media,
           args.mediaItems,
           args.concepts,
+          args.cards,
         );
         const maxTokens = MAX_TOKENS[args.outputLength] ?? 8000;
         const baseUrl = resolveBaseUrl(apiFormat, rawBaseUrl);
@@ -1857,6 +1909,7 @@ export const model = {
               args.infographicPaths,
               args.infographics,
             ),
+            cards: args.cards,
             beginnerGuideContent,
             generatedAt: new Date().toISOString(),
           },
@@ -1907,6 +1960,9 @@ export const model = {
         infographics: z.array(InfographicItemSchema).optional().describe(
           "Infographic embeds with relative HTML path and optional title.",
         ),
+        cards: z.array(CardItemSchema).optional().describe(
+          "Per-concept card images. Matched by index to the concepts array. Each card is shown alongside its concept section and a 'Card Deck' button at the top opens a popup grid of all cards.",
+        ),
         beginnerGuideContent: z.string().optional().describe(
           "Pre-generated HTML fragment for the beginner's intro popup. When provided, a 'Beginner's intro' button appears at the top of the page opening this content in a popup.",
         ),
@@ -1939,6 +1995,7 @@ export const model = {
           infographicPath?: string;
           infographicPaths?: string[];
           infographics?: InfographicItem[];
+          cards?: CardItem[];
           beginnerGuideContent?: string;
         },
         context: ModelContext,
@@ -1992,6 +2049,7 @@ export const model = {
               args.infographicPaths,
               args.infographics,
             ),
+            cards: args.cards,
             beginnerGuideContent: args.beginnerGuideContent,
             generatedAt: new Date().toISOString(),
           },
