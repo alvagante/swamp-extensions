@@ -208,15 +208,20 @@ function renderInfographicPage(
   metadata: InfographicMetadata,
   imageSrc: string,
 ): string {
-  const keyPoints = metadata.keyPoints.length > 0
-    ? `<ol class="ig-points">${
-      metadata.keyPoints.map((point) => `<li>${escapeHtml(point)}</li>`).join(
-        "",
-      )
-    }</ol>`
+  const keyPointItems = metadata.keyPoints
+    .map((p) => `<li>${escapeHtml(p)}</li>`)
+    .join("");
+  const keyPointsHtml = keyPointItems
+    ? `<div class="ig-copy">
+      <p class="ig-topic">${escapeHtml(metadata.topic)}</p>
+      <ul class="ig-points">${keyPointItems}</ul>
+    </div>`
     : "";
-  const details = metadata.details
-    ? `<p class="ig-details">${escapeHtml(metadata.details)}</p>`
+
+  const revisedSection = metadata.revisedPrompt
+    ? `<h3 class="ig-pdlg-h3">Revised by model</h3><pre class="ig-pdlg-pre">${
+      escapeHtml(metadata.revisedPrompt)
+    }</pre>`
     : "";
 
   return `<!DOCTYPE html>
@@ -233,9 +238,8 @@ function renderInfographicPage(
   --ig-red: #c00;
   --ig-paper: #fff;
 }
-* { box-sizing: border-box; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
 body {
-  margin: 0;
   font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
   color: var(--ig-ink);
   background: #f4f4f1;
@@ -259,11 +263,9 @@ header {
   border-bottom: 3px solid var(--ig-red);
 }
 h1 {
-  margin: 0;
   font-family: Georgia, "Times New Roman", serif;
-  font-size: clamp(2rem, 5vw, 4.2rem);
+  font-size: clamp(1.8rem, 4vw, 3.6rem);
   line-height: 0.95;
-  letter-spacing: 0;
   text-transform: uppercase;
 }
 .ig-meta {
@@ -273,61 +275,206 @@ h1 {
   text-align: right;
   white-space: nowrap;
 }
-.ig-content {
-  display: grid;
-  grid-template-columns: minmax(0, 1.55fr) minmax(260px, 0.65fr);
-  gap: clamp(1rem, 3vw, 2rem);
+figure {
   padding: clamp(1rem, 3vw, 2rem);
+  padding-bottom: 0.5rem;
 }
-figure { margin: 0; }
-img {
+.ig-img-wrap {
+  position: relative;
+  cursor: zoom-in;
+}
+.ig-img-wrap::after {
+  content: "⤢";
+  position: absolute;
+  bottom: 0.4rem;
+  right: 0.4rem;
+  background: rgba(0,0,0,0.55);
+  color: #fff;
+  font-size: 1rem;
+  padding: 0.15rem 0.4rem;
+  border-radius: 2px;
+  line-height: 1.4;
+  opacity: 0;
+  transition: opacity 0.15s;
+  pointer-events: none;
+}
+.ig-img-wrap:hover::after { opacity: 1; }
+img.ig-main {
   display: block;
   width: 100%;
   height: auto;
   border: 1px solid var(--ig-line);
 }
 figcaption {
-  margin-top: 0.5rem;
+  padding: 0.4rem clamp(1rem, 3vw, 2rem) 0;
   color: var(--ig-dim);
   font-size: 0.82rem;
 }
 .ig-copy {
-  border-left: 1px solid var(--ig-line);
-  padding-left: clamp(1rem, 2vw, 1.5rem);
+  padding: clamp(0.8rem, 2vw, 1.2rem) clamp(1rem, 3vw, 2rem) clamp(1rem, 3vw, 1.5rem);
+  border-top: 1px solid var(--ig-line);
+  margin-top: clamp(1rem, 2vw, 1.5rem);
 }
 .ig-topic {
-  margin: 0 0 1rem;
+  margin-bottom: 0.75rem;
   color: var(--ig-red);
   font-family: "Courier New", Courier, monospace;
   font-weight: 700;
+  font-size: 0.8rem;
   text-transform: uppercase;
 }
-.ig-details {
-  margin: 0 0 1.2rem;
-  color: var(--ig-dim);
-  line-height: 1.5;
-}
 .ig-points {
-  margin: 0;
   padding-left: 1.4rem;
+  columns: 2;
+  column-gap: 2rem;
 }
 .ig-points li {
-  margin: 0 0 0.85rem;
-  padding-left: 0.25rem;
+  margin-bottom: 0.7rem;
+  padding-left: 0.2rem;
   line-height: 1.45;
+  break-inside: avoid;
 }
 footer {
-  padding: 0.8rem clamp(1rem, 3vw, 2rem) 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.7rem clamp(1rem, 3vw, 2rem) 0.9rem;
   border-top: 1px solid var(--ig-line);
   color: var(--ig-dim);
   font-family: "Courier New", Courier, monospace;
   font-size: 0.72rem;
 }
-@media (max-width: 760px) {
+.ig-footer-spacer { flex: 1; }
+.ig-btn {
+  background: none;
+  border: 1px solid var(--ig-line);
+  color: var(--ig-dim);
+  font-family: "Courier New", Courier, monospace;
+  font-size: 0.72rem;
+  padding: 0.2rem 0.6rem;
+  cursor: pointer;
+  border-radius: 2px;
+  text-decoration: none;
+  display: inline-block;
+}
+.ig-btn:hover { border-color: var(--ig-ink); color: var(--ig-ink); }
+
+/* Lightbox — fills the iframe viewport via showModal() top-layer */
+dialog.ig-lightbox {
+  padding: 0;
+  border: 0;
+  background: rgba(0,0,0,0.9);
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  inset: 0;
+  margin: 0;
+}
+dialog.ig-lightbox::backdrop { background: rgba(0,0,0,0.65); }
+.ig-lb-inner {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+.ig-lb-img {
+  max-width: 96%;
+  max-height: 94%;
+  object-fit: contain;
+  transform-origin: center center;
+  transition: transform 0.08s ease;
+  user-select: none;
+}
+.ig-lb-close {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  background: rgba(255,255,255,0.12);
+  border: 1px solid rgba(255,255,255,0.2);
+  color: #fff;
+  font-size: 1.2rem;
+  line-height: 1;
+  width: 2.2rem;
+  height: 2.2rem;
+  border-radius: 50%;
+  cursor: pointer;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.ig-lb-close:hover { background: rgba(255,255,255,0.25); }
+.ig-lb-hint {
+  position: absolute;
+  bottom: 0.75rem;
+  left: 50%;
+  transform: translateX(-50%);
+  color: rgba(255,255,255,0.4);
+  font-family: "Courier New", Courier, monospace;
+  font-size: 0.68rem;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+/* Prompt dialog */
+dialog.ig-pdlg {
+  max-width: min(720px, 92vw);
+  width: 100%;
+  max-height: 80%;
+  padding: 1.75rem;
+  border: 1px solid var(--ig-line);
+  border-radius: 4px;
+  overflow-y: auto;
+  position: relative;
+}
+dialog.ig-pdlg::backdrop { background: rgba(0,0,0,0.45); }
+.ig-pdlg-close {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  background: none;
+  border: 1px solid var(--ig-line);
+  color: var(--ig-ink);
+  font-size: 1rem;
+  line-height: 1;
+  width: 1.8rem;
+  height: 1.8rem;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.ig-pdlg-close:hover { background: var(--ig-line); }
+.ig-pdlg-h2 {
+  margin: 0 2rem 1rem 0;
+  font-family: "Courier New", Courier, monospace;
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  color: var(--ig-red);
+}
+.ig-pdlg-h3 {
+  margin: 1.25rem 0 0.5rem;
+  font-family: "Courier New", Courier, monospace;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  color: var(--ig-dim);
+}
+.ig-pdlg-pre {
+  white-space: pre-wrap;
+  font-family: "Courier New", Courier, monospace;
+  font-size: 0.78rem;
+  color: var(--ig-dim);
+  line-height: 1.55;
+}
+@media (max-width: 600px) {
   header { grid-template-columns: 1fr; }
   .ig-meta { text-align: left; white-space: normal; }
-  .ig-content { grid-template-columns: 1fr; }
-  .ig-copy { border-left: 0; border-top: 1px solid var(--ig-line); padding-left: 0; padding-top: 1rem; }
+  .ig-points { columns: 1; }
 }
 </style>
 </head>
@@ -341,22 +488,95 @@ footer {
     escapeHtml(metadata.generatedAt.slice(0, 10))
   }<br>model: ${escapeHtml(metadata.model)}</div>
     </header>
-    <section class="ig-content">
-      <figure>
-        <img src="${escapeHtml(imageSrc)}" alt="${escapeHtml(metadata.prompt)}">
-        <figcaption>${escapeHtml(metadata.topic)}</figcaption>
-      </figure>
-      <aside class="ig-copy">
-        <p class="ig-topic">${escapeHtml(metadata.topic)}</p>
-        ${details}
-        ${keyPoints}
-      </aside>
-    </section>
-    <footer>${escapeHtml(metadata.style)} / ${
+    <figure>
+      <div class="ig-img-wrap" id="igImgWrap">
+        <img class="ig-main" id="igImg" src="${escapeHtml(imageSrc)}" alt="${
+    escapeHtml(metadata.title)
+  }">
+      </div>
+    </figure>
+    <figcaption>${escapeHtml(metadata.topic)}</figcaption>
+    ${keyPointsHtml}
+    <footer>
+      <span>${escapeHtml(metadata.style)} / ${
     escapeHtml(metadata.orientation)
-  } / ${escapeHtml(metadata.size)}</footer>
+  } / ${escapeHtml(metadata.size)}</span>
+      <span class="ig-footer-spacer"></span>
+      <button class="ig-btn" id="igPromptBtn">view prompt</button>
+    </footer>
   </article>
 </main>
+
+<dialog id="igLightbox" class="ig-lightbox">
+  <div class="ig-lb-inner" id="igLbInner">
+    <button class="ig-lb-close" id="igLbClose" aria-label="Close">×</button>
+    <img class="ig-lb-img" id="igLbImg" src="" alt="${
+    escapeHtml(metadata.title)
+  }">
+    <p class="ig-lb-hint">scroll to zoom · click outside image to close</p>
+  </div>
+</dialog>
+
+<dialog id="igPromptDlg" class="ig-pdlg">
+  <button class="ig-pdlg-close" id="igPromptClose" aria-label="Close">×</button>
+  <h2 class="ig-pdlg-h2">Generation prompt</h2>
+  <pre class="ig-pdlg-pre">${escapeHtml(metadata.augmentedPrompt)}</pre>
+  ${revisedSection}
+</dialog>
+
+<script>
+(function () {
+  var img = document.getElementById('igImg');
+  var imgWrap = document.getElementById('igImgWrap');
+  var lightbox = document.getElementById('igLightbox');
+  var lbImg = document.getElementById('igLbImg');
+  var lbClose = document.getElementById('igLbClose');
+  var lbInner = document.getElementById('igLbInner');
+  var promptBtn = document.getElementById('igPromptBtn');
+  var promptDlg = document.getElementById('igPromptDlg');
+  var promptClose = document.getElementById('igPromptClose');
+  var scale = 1;
+
+  function openLightbox() {
+    lbImg.src = img.src;
+    scale = 1;
+    lbImg.style.transform = 'scale(1)';
+    lightbox.showModal();
+  }
+
+  function closeLightbox() {
+    lightbox.close();
+  }
+
+  if (imgWrap) imgWrap.addEventListener('click', openLightbox);
+
+  if (lbClose) lbClose.addEventListener('click', function (e) {
+    e.stopPropagation();
+    closeLightbox();
+  });
+
+  if (lbInner) lbInner.addEventListener('click', function (e) {
+    if (e.target === lbInner) closeLightbox();
+  });
+
+  if (lightbox) {
+    lightbox.addEventListener('wheel', function (e) {
+      e.preventDefault();
+      scale = Math.min(Math.max(scale - e.deltaY * 0.003, 0.5), 10);
+      lbImg.style.transform = 'scale(' + scale + ')';
+    }, { passive: false });
+    lightbox.addEventListener('cancel', function () { scale = 1; });
+  }
+
+  if (promptBtn && promptDlg) {
+    promptBtn.addEventListener('click', function () { promptDlg.showModal(); });
+    promptClose.addEventListener('click', function () { promptDlg.close(); });
+    promptDlg.addEventListener('click', function (e) {
+      if (e.target === promptDlg) promptDlg.close();
+    });
+  }
+}());
+</script>
 </body>
 </html>`;
 }
@@ -420,7 +640,7 @@ async function writeInfographic(
  */
 export const model = {
   type: "@alvagante/content-infographic",
-  version: "2026.06.19.1",
+  version: "2026.06.22.1",
   globalArguments: z.object({
     apiKey: z.string().optional().meta({ sensitive: true }),
     outputDir: z.string().optional(),

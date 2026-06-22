@@ -32,8 +32,8 @@ onboarding — say so and stop:
 > You already have models set up. You're past the getting-started stage — just
 > tell me what you'd like to work on and I'll use the right skill.
 
-If the command fails, surface the error and suggest `swamp repo init` (delegate
-to `swamp-repo` if needed), then return here. If no models exist, present the
+If the command fails, surface the error and suggest `swamp repo init` (use the
+`swamp` skill for guidance), then return here. If no models exist, present the
 5-step checklist (Goals → Create → Run → Inspect → Graduate) and begin State 1.
 
 ## State 1: goals_understood
@@ -45,15 +45,17 @@ implementation type). Tell them they can skip if they already know swamp.
 
 **Early exit:** If they describe a task with swamp terminology (e.g., "create a
 model for X", "set up a workflow"), skip ahead and delegate directly to the
-matching skill (`swamp-model`, `swamp-workflow`, `swamp-vault`, etc.).
+`swamp` skill — its routing table will load the right guide.
 
 **Verify:** The user described a goal. Then find a model type:
 
-1. `swamp model type search <keywords> --json`
-2. If nothing local: `swamp extension search <keywords> --json`
-3. If an extension matches: `swamp extension pull <package>`
-4. If nothing exists, offer a custom extension via `swamp-extension`. Use
-   `command/shell` only for genuine one-off ad-hoc commands.
+1. `swamp extension search <keywords> --json` — prefer `@swamp/*` official
+   extensions first
+2. If an extension matches: `swamp extension pull <package>`
+3. `swamp model type search <keywords> --json` — check local/installed types
+4. Extend an existing type if it covers the domain but lacks the method you need
+5. If nothing exists, offer a custom extension via the `swamp` skill (extension
+   guide). Use `command/shell` only for genuine one-off ad-hoc commands.
 
 Store the goal — use it to name the model and tailor later examples.
 
@@ -87,7 +89,7 @@ warnings to the user.
 
 - `command/shell`: `execute`
 - Local typed: a read-only method first (`sync`, `get`)
-- Extension: check `swamp model type describe <type> --json`
+- Extension: check `swamp model type describe <type> --compact --json`
 
 **Verify:** The run completes with `succeeded`.
 
