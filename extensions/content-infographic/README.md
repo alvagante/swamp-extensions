@@ -36,7 +36,7 @@ swamp model method run my-infographic generate \
   --input topic="Puppet catalog compilation" \
   --input title="Puppet Catalog Compilation" \
   --input 'keyPoints:json=["Facts enter","Catalog compiles","Agent applies"]' \
-  --input style=technical \
+  --input style=technical-diagram \
   --input htmlFilename=puppet-catalog-infographic.html
 ```
 
@@ -48,7 +48,7 @@ Arguments:
 | `title`        | No       | Page title                                       | `{topic} Infographic`      |
 | `details`      | No       | Context rendered in the HTML shell               | -                          |
 | `keyPoints`    | No       | Array of short statements                        | `[]`                       |
-| `style`        | No       | `clean`, `technical`, `ixen`, `editorial`, `blueprint` | `clean`             |
+| `style`        | No       | `none`, `clean`, `editorial`, `ixen-dark`, `ixen-light`, `technical-diagram`, `cyberpunk-photo`, `educational`, `pencil-bw`, `pencil-color-accents`, `blueprint` | `clean` |
 | `orientation`  | No       | `wide`, `portrait`, `square`                     | `wide`                     |
 | `model`        | No       | OpenAI image model                               | `gpt-image-2`              |
 | `background`   | No       | `opaque`, `transparent`, `auto`                  | `opaque`                   |

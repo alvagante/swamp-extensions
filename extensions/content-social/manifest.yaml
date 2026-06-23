@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@alvagante/content-social"
-version: "2026.06.21.1"
+version: "2026.06.23.1"
 description: "Generate platform-shaped social media post drafts for Facebook, X, LinkedIn, TikTok, and Instagram. Supports persona-driven text, short posts, text plus image/card plans, provided media, and orchestration-friendly media requests for @alvagante/content-image and @alvagante/content-card."
 repository: "https://github.com/alvagante/swamp-extensions"
 paths:

@@ -78,8 +78,9 @@ Arguments:
 | `skillLevel`   | No       | `novice`, `intermediate`, `senior`, `guru` | `intermediate`         |
 | `outputLength` | No       | `short`, `medium`, `long`                  | `medium`               |
 | `model`        | No       | Any model ID                               | `claude-opus-4-8`      |
-| `persona`      | No       | `neutral`, `alvabot`, `abnormalia`         | `neutral`              |
+| `persona`      | No       | `neutral`, `alvabot`, `cybergeek`, `abnormalia`, `noir`, `glitchpoet`, `fieldnotes`, `oracle`, `baroque`, `deadpan`, `gonzo`, `punkprof` | `neutral`              |
 | `personaDescription` | No | Custom voice directive overriding `persona` | —                     |
+| `style`        | No       | Optional style label rendered in the provenance footer | —          |
 | `credits`      | No       | Optional top-right byline before the timestamp | —            |
 | `headerContent` | No      | Raw HTML fragment rendered below the Ixen header | —                 |
 | `footerContent` | No      | Raw HTML fragment rendered after the body and inline embeds | —           |
@@ -134,8 +135,9 @@ Arguments:
 | `skillLevel`   | No       | `novice`, `intermediate`, `senior`, `guru`      | `intermediate`          |
 | `outputLength` | No       | `short`, `medium`, `long`                       | Derived from word count |
 | `model`        | No       | Identifier of whatever produced the content     | `external`              |
-| `persona`      | No       | `neutral`, `alvabot`, `abnormalia`              | `neutral`               |
+| `persona`      | No       | `neutral`, `alvabot`, `cybergeek`, `abnormalia`, `noir`, `glitchpoet`, `fieldnotes`, `oracle`, `baroque`, `deadpan`, `gonzo`, `punkprof` | `neutral`               |
 | `personaDescription` | No | Custom voice directive overriding `persona`     | —                       |
+| `style`        | No       | Optional style label rendered in the provenance footer | —             |
 | `credits`      | No       | Optional top-right byline before the timestamp | —                       |
 | `headerContent` | No      | Raw HTML fragment rendered below the Ixen header | —                      |
 | `footerContent` | No      | Raw HTML fragment rendered after the body and inline embeds | —                |

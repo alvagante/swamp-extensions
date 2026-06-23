@@ -1,16 +1,23 @@
 import { z } from "npm:zod@4";
+import {
+  type ApiFormat,
+  ApiFormatSchema,
+  type Branding,
+  BrandingSchema,
+  buildRequest,
+  extractContent,
+  resolveBaseUrl,
+  type SkillLevel,
+  SkillLevelSchema,
+} from "../../../../shared/content_shared.ts";
 
-const SkillLevelSchema = z.enum(["novice", "intermediate", "senior", "guru"]);
 const VerbositySchema = z.enum(["minimal", "standard", "detailed"]);
 const CompletenessSchema = z.enum(["essential", "comprehensive", "exhaustive"]);
 const OutputFormatSchema = z.enum(["html", "markdown"]);
-const ApiFormatSchema = z.enum(["anthropic", "openai-compat"]);
 
-type SkillLevel = z.infer<typeof SkillLevelSchema>;
 type Verbosity = z.infer<typeof VerbositySchema>;
 type Completeness = z.infer<typeof CompletenessSchema>;
 type OutputFormat = z.infer<typeof OutputFormatSchema>;
-type ApiFormat = z.infer<typeof ApiFormatSchema>;
 
 const CheatsheetSchema = z.object({
   title: z.string(),
@@ -31,6 +38,7 @@ type ModelContext = {
     apiKey?: string;
     baseUrl?: string;
     outputDir?: string;
+    branding?: Branding;
   };
   writeResource: (
     specName: "cheatsheet",
@@ -48,99 +56,6 @@ type ModelContext = {
     error: (msg: string, props?: Record<string, unknown>) => void;
   };
 };
-
-const DEFAULT_BASE_URL: Record<ApiFormat, string> = {
-  "anthropic": "https://api.anthropic.com",
-  "openai-compat": "http://localhost:11434/v1",
-};
-
-function resolveBaseUrl(apiFormat: ApiFormat, baseUrl?: string): string {
-  return (baseUrl ?? DEFAULT_BASE_URL[apiFormat]).replace(/\/$/, "");
-}
-
-function supportsAdaptiveThinking(modelId: string): boolean {
-  return (
-    modelId.includes("opus-4") ||
-    modelId.includes("fable") ||
-    modelId.includes("mythos")
-  );
-}
-
-function buildRequest(
-  apiFormat: ApiFormat,
-  apiKey: string | undefined,
-  baseUrl: string,
-  modelId: string,
-  systemPrompt: string,
-  userMessage: string,
-  maxTokens: number,
-): {
-  url: string;
-  headers: Record<string, string>;
-  body: Record<string, unknown>;
-} {
-  if (apiFormat === "anthropic") {
-    const headers: Record<string, string> = {
-      "content-type": "application/json",
-      "anthropic-version": "2023-06-01",
-    };
-    if (apiKey) headers["x-api-key"] = apiKey;
-    const body: Record<string, unknown> = {
-      model: modelId,
-      max_tokens: maxTokens,
-      system: systemPrompt,
-      messages: [{ role: "user", content: userMessage }],
-    };
-    if (supportsAdaptiveThinking(modelId)) {
-      body.thinking = { type: "adaptive" };
-    }
-    return { url: `${baseUrl}/v1/messages`, headers, body };
-  }
-
-  const headers: Record<string, string> = {
-    "content-type": "application/json",
-  };
-  if (apiKey) headers["authorization"] = `Bearer ${apiKey}`;
-  return {
-    url: `${baseUrl}/chat/completions`,
-    headers,
-    body: {
-      model: modelId,
-      max_tokens: maxTokens,
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userMessage },
-      ],
-    },
-  };
-}
-
-function extractContent(
-  apiFormat: ApiFormat,
-  responseJson: unknown,
-): { text: string; stopReason: string } {
-  if (apiFormat === "anthropic") {
-    const result = responseJson as {
-      content: Array<{ type: string; text?: string }>;
-      stop_reason: string;
-    };
-    const text = result.content
-      .filter((block) => block.type === "text")
-      .map((block) => block.text ?? "")
-      .join("\n")
-      .trim();
-    return { text, stopReason: result.stop_reason };
-  }
-
-  const result = responseJson as {
-    choices: Array<{ message: { content: string }; finish_reason: string }>;
-  };
-  const choice = result.choices[0];
-  return {
-    text: choice?.message?.content?.trim() ?? "",
-    stopReason: choice?.finish_reason ?? "unknown",
-  };
-}
 
 function escapeHtml(s: string): string {
   return s
@@ -617,7 +532,25 @@ const PAGE_CSS = `
     .cs-callout.warning { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     .cs-callout.note    { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   }
+  /* Branding footer */
+  .cs-brand-footer { padding: 0.5rem 1.5rem; text-align: right; border-top: 1px solid var(--cs-border); }
+  .cs-brand-footer img { height: 22px; width: auto; vertical-align: middle; }
+  .cs-brand-footer a { text-decoration: none; opacity: 0.65; }
+  .cs-brand-footer a:hover { opacity: 1; }
 `;
+
+function renderBrandFooter(branding: Branding | undefined): string {
+  if (!branding?.logo && !branding?.name) return "";
+  const inner = branding.logo
+    ? `<img src="${escapeHtml(branding.logo)}" alt="${
+      escapeHtml(branding.name ?? "")
+    }">`
+    : escapeHtml(branding.name ?? "");
+  const content = branding.link
+    ? `<a href="${escapeHtml(branding.link)}">${inner}</a>`
+    : inner;
+  return `\n<footer class="cs-brand-footer">${content}</footer>`;
+}
 
 function renderHtmlPage(
   title: string,
@@ -628,6 +561,7 @@ function renderHtmlPage(
   completeness: Completeness,
   model: string,
   generatedAt: string,
+  branding?: Branding,
 ): string {
   const safeTitle = escapeHtml(title);
   const meta = [
@@ -653,7 +587,7 @@ function renderHtmlPage(
 </header>
 <main>
 ${body}
-</main>
+</main>${renderBrandFooter(branding)}
 </body>
 </html>`;
 }
@@ -736,13 +670,14 @@ function deriveTitle(
  */
 export const model = {
   type: "@alvagante/content-cheatsheet",
-  version: "2026.06.17.3",
+  version: "2026.06.23.1",
 
   globalArguments: z.object({
     apiFormat: ApiFormatSchema.default("anthropic"),
     apiKey: z.string().optional().meta({ sensitive: true }),
     baseUrl: z.string().url().optional(),
     outputDir: z.string().optional(),
+    branding: BrandingSchema.optional(),
   }),
 
   resources: {
@@ -905,6 +840,7 @@ export const model = {
             completeness,
             modelId,
             generatedAt,
+            context.globalArgs.branding,
           );
         } else {
           outputContent = rawContent;

@@ -63,13 +63,15 @@ Deno.test("save rotates previous Ixen output and renders version menu", async ()
   <div class="popup-bar"><button class="popup-close">Close Window</button></div>
   <h2>Kernel notes</h2>
   <p>The kernel arbitrates CPU time.</p>
-</aside>`,
+</aside>
+<figure class="zoom ixen-card-img small float-right"><img src="./kernel-card.png" alt="Kernel card"><figcaption>Kernel card</figcaption></figure>`,
       narrator: "smoke",
       topic: "Smoke",
       skillLevel: "intermediate",
       model: "external",
       persona: "abnormalia",
       personaDescription: "Custom machine noir.",
+      style: "ixen-dark",
       credits: "Custom credits",
       outputDir,
       versionOutput: true,
@@ -77,6 +79,7 @@ Deno.test("save rotates previous Ixen output and renders version menu", async ()
       footerContent: '<p class="shell-footer">custom footer</p>',
       cheatsheetPath: "cheatsheet.html",
       infographicPath: "infographic.html",
+      cards: [{ path: "kernel-card.png", title: "Kernel card" }],
     },
     context,
   );
@@ -97,10 +100,20 @@ Deno.test("save rotates previous Ixen output and renders version menu", async ()
     "expected persona description metadata to be stored",
   );
   assert(
+    (resources[1] as { style?: string }).style === "ixen-dark",
+    "expected style metadata to be stored",
+  );
+  assert(
     current.includes(
       '<a href="https://swamp-club.com/extensions/@alvagante/content-ixen" target="_blank" rel="noopener noreferrer">Generated with Swamp extension @alvagante/content-ixen</a>',
     ),
     "expected footer provenance extension link",
+  );
+  assert(
+    current.includes(
+      '<div class="ixen-provenance-meta"><span>abnormalia + custom voice</span><span>style: ixen-dark</span></div>',
+    ),
+    "expected persona and style provenance metadata",
   );
   assert(
     current.includes('<span class="byline">By Custom credits — 20'),
@@ -113,6 +126,26 @@ Deno.test("save rotates previous Ixen output and renders version menu", async ()
   assert(
     current.includes('data-popup="ixen-all-notes">Notes</button>'),
     "expected Notes quick-nav button",
+  );
+  assert(
+    current.includes('data-popup="ixen-card-deck">Card Deck</button>'),
+    "expected Card Deck quick-nav button",
+  );
+  assert(
+    current.includes('<aside class="popup" id="ixen-card-deck" hidden>'),
+    "expected card deck popup",
+  );
+  assert(
+    current.includes("function cardPreviewImage"),
+    "expected delegated card hover preview handler",
+  );
+  assert(
+    current.includes("figure.zoom.ixen-card-img"),
+    "expected right-side card styling",
+  );
+  assert(
+    current.includes(".ixen-card-hover"),
+    "expected card hover preview styling",
   );
   assert(
     current.includes('buildConceptIndexPopup("concept-slide"'),

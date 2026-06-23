@@ -1,47 +1,22 @@
 import { z } from "npm:zod@4";
+import {
+  type ApiFormat,
+  ApiFormatSchema,
+  type CardStyle,
+  CardStyleSchema,
+  type ImageStyle,
+  ImageStyleSchema,
+  type Persona,
+  PersonaSchema,
+} from "../../../../shared/content_shared.ts";
 
-const ApiFormatSchema = z.enum(["anthropic", "openai-compat"]);
 const ContentKindSchema = z.enum(["text", "text-image", "short", "cards"]);
 const MediaKindSchema = z.enum(["image", "card", "video", "link"]);
 const MediaModeSchema = z.enum(["auto", "none", "provided", "image", "card"]);
-const PersonaSchema = z.enum(["neutral", "alvabot", "abnormalia"]);
-const ImageStyleSchema = z.enum([
-  "none",
-  "ixen-dark",
-  "ixen-light",
-  "technical-diagram",
-  "cyberpunk-photo",
-  "educational",
-  "pencil-bw",
-  "pencil-color-accents",
-  "blueprint",
-]);
-const CardStyleSchema = z.enum([
-  "none",
-  "ixen-dark",
-  "ixen-light",
-  "technical-diagram",
-  "cyberpunk-photo",
-  "educational",
-  "pencil-bw",
-  "pencil-color-accents",
-  "blueprint",
-  "vintage-playing-card",
-  "tarot-technical",
-  "brutalist",
-  "risograph",
-  "field-guide",
-  "monochrome-ink",
-  "luminous-minimal",
-]);
 
-type ApiFormat = z.infer<typeof ApiFormatSchema>;
 type ContentKind = z.infer<typeof ContentKindSchema>;
 type MediaKind = z.infer<typeof MediaKindSchema>;
 type MediaMode = z.infer<typeof MediaModeSchema>;
-type Persona = z.infer<typeof PersonaSchema>;
-type ImageStyle = z.infer<typeof ImageStyleSchema>;
-type CardStyle = z.infer<typeof CardStyleSchema>;
 
 type PlatformConfig = {
   key: "facebook" | "x" | "linkedin" | "tiktok" | "instagram";
@@ -204,8 +179,26 @@ const PERSONA_DIRECTIVES: Record<Persona, string> = {
     "Voice: clear, direct, platform-native, with no visible imitation of a named person.",
   alvabot:
     "Voice: Alessandro Franceschi / example42. Pragmatic, technically deep, conversational, occasionally self-ironic. Direct about tradeoffs and allergic to corporate filler.",
-  abnormalia:
+  cybergeek:
     "Voice: cyberpunk-inflected technical culture. Sharp, unsentimental, visually specific, dense when needed, no bland platform sludge.",
+  abnormalia:
+    "Voice: Abnormalia. Concise, sharp, witty, ironic and self-ironic. No fluff; to the point, with divagations allowed when useful. Sometimes write in interrupted lines. Use bold statements and emphasis when they land. Play with words, images, and rhetorical figures. Expect a smart reader. Refer to geek and pop culture naturally. Treat 42 as a wink, not the only number.",
+  noir:
+    "Voice: technical noir. Terse, atmospheric, suspicious of easy answers. Concrete facts, shadowed implications, dry fatalism, and hardboiled metaphor when it helps.",
+  glitchpoet:
+    "Voice: glitch poet. Fragmented but intelligible. Rhythm, repetition, abrupt breaks, unexpected images, precise technical meaning under the distortion.",
+  fieldnotes:
+    "Voice: field notes from production. Observational, empirical, tactile. Short paragraphs, concrete details, no big theory until the evidence earns it.",
+  oracle:
+    "Voice: cryptic systems oracle. Aphoristic, calm, slightly uncanny. Compressed truths, warnings, pattern recognition, and careful paradox.",
+  baroque:
+    "Voice: baroque engineer. Ornate but exact. Elaborate analogies, old machinery, cathedrals of logic, then a clean technical conclusion.",
+  deadpan:
+    "Voice: deadpan operator. Flat affect, sharp timing, brutal clarity. Understate disasters, skip hype, let absurdity reveal itself.",
+  gonzo:
+    "Voice: gonzo technical dispatch. First-person, kinetic, irreverent, subjective, sensory, chaotic in energy but disciplined in facts.",
+  punkprof:
+    "Voice: punk professor. Rigorous, direct, anti-cargo-cult. Teaches with zine energy, operational scars, and no talking down.",
 };
 
 /** Platform-specific defaults for the five content-social model entrypoints. */
@@ -214,7 +207,7 @@ export const PLATFORM_CONFIGS: Record<PlatformConfig["key"], PlatformConfig> = {
     key: "facebook",
     type: "@alvagante/content-social-facebook",
     label: "Facebook",
-    version: "2026.06.21.1",
+    version: "2026.06.23.1",
     targetCharacters: 800,
     shortCharacters: 180,
     hashtagTarget: 4,
@@ -228,7 +221,7 @@ export const PLATFORM_CONFIGS: Record<PlatformConfig["key"], PlatformConfig> = {
     key: "x",
     type: "@alvagante/content-social-x",
     label: "X",
-    version: "2026.06.21.1",
+    version: "2026.06.23.1",
     targetCharacters: 280,
     shortCharacters: 220,
     hashtagTarget: 2,
@@ -242,7 +235,7 @@ export const PLATFORM_CONFIGS: Record<PlatformConfig["key"], PlatformConfig> = {
     key: "linkedin",
     type: "@alvagante/content-social-linkedin",
     label: "LinkedIn",
-    version: "2026.06.21.1",
+    version: "2026.06.23.1",
     targetCharacters: 1300,
     shortCharacters: 300,
     hashtagTarget: 5,
@@ -256,7 +249,7 @@ export const PLATFORM_CONFIGS: Record<PlatformConfig["key"], PlatformConfig> = {
     key: "tiktok",
     type: "@alvagante/content-social-tiktok",
     label: "TikTok",
-    version: "2026.06.21.1",
+    version: "2026.06.23.1",
     targetCharacters: 300,
     shortCharacters: 150,
     hashtagTarget: 6,
@@ -270,7 +263,7 @@ export const PLATFORM_CONFIGS: Record<PlatformConfig["key"], PlatformConfig> = {
     key: "instagram",
     type: "@alvagante/content-social-instagram",
     label: "Instagram",
-    version: "2026.06.21.1",
+    version: "2026.06.23.1",
     targetCharacters: 2200,
     shortCharacters: 150,
     hashtagTarget: 12,

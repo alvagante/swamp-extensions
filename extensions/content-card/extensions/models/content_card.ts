@@ -1,33 +1,23 @@
 import { z } from "npm:zod@4";
+import {
+  type Background,
+  BackgroundSchema,
+  CARD_STYLE_PREFIXES,
+  type CardStyle,
+  CardStyleSchema,
+  type ImageFormat,
+  ImageFormatSchema,
+  type Quality,
+  QualitySchema,
+  type SkillLevel,
+  SkillLevelSchema,
+} from "../../../../shared/content_shared.ts";
 
-const BackgroundSchema = z.enum(["opaque", "transparent", "auto"]);
-const OutputFormatSchema = z.enum(["png", "webp", "jpeg"]);
-const QualitySchema = z.enum(["auto", "low", "medium", "high"]);
-const SkillLevelSchema = z.enum(["novice", "intermediate", "senior", "guru"]);
-const StylePresetSchema = z.enum([
-  "none",
-  "ixen-dark",
-  "ixen-light",
-  "technical-diagram",
-  "cyberpunk-photo",
-  "educational",
-  "pencil-bw",
-  "pencil-color-accents",
-  "blueprint",
-  "vintage-playing-card",
-  "tarot-technical",
-  "brutalist",
-  "risograph",
-  "field-guide",
-  "monochrome-ink",
-  "luminous-minimal",
-]);
+const StylePresetSchema = CardStyleSchema;
+type StylePreset = CardStyle;
 
-type Background = z.infer<typeof BackgroundSchema>;
-type OutputFormat = z.infer<typeof OutputFormatSchema>;
-type Quality = z.infer<typeof QualitySchema>;
-type SkillLevel = z.infer<typeof SkillLevelSchema>;
-type StylePreset = z.infer<typeof StylePresetSchema>;
+const OutputFormatSchema = ImageFormatSchema;
+type OutputFormat = ImageFormat;
 
 const CardSchema = z.object({
   prompt: z.string(),
@@ -93,39 +83,7 @@ const MIME_TYPES: Record<OutputFormat, string> = {
 const NO_TRANSPARENCY_MODELS = new Set(["dall-e-3", "gpt-image-2"]);
 const MAX_API_ATTEMPTS = 3;
 
-const STYLE_PREFIXES: Record<StylePreset, string> = {
-  none: "",
-  "ixen-dark":
-    "Dark near-black playing-card design, red accent (#cc0000), sharp technical cyberpunk aesthetic, high contrast, restrained neon details. ",
-  "ixen-light":
-    "Near-white paper card, graphite linework, selective muted ink accents, slightly surreal but sober technical composition. ",
-  "technical-diagram":
-    "Clean technical diagram card, white background, schematic visual hierarchy, precise labels, blue and grey accents. ",
-  "cyberpunk-photo":
-    "Photorealistic cinematic cyberpunk card, neon-lit materials, rain-polished surfaces, rich atmospheric detail. ",
-  educational:
-    "Bright educational card, accessible colors, clear hierarchy, friendly textbook illustration style. ",
-  "pencil-bw":
-    "Black-and-white pencil playing card, fine graphite lines, cross-hatching, precise technical draftsmanship. ",
-  "pencil-color-accents":
-    "Pencil playing card with one or two vivid color accents, mostly monochrome graphite, focused emphasis. ",
-  blueprint:
-    "Blueprint playing card, fine white linework on deep navy (#003366), dimension marks, section cuts, schematic precision. ",
-  "vintage-playing-card":
-    "Classic playing-card illustration, engraved borders, balanced symmetry, aged paper texture, elegant readable ornament. ",
-  "tarot-technical":
-    "Technical tarot card, symbolic engineering iconography, centered square plate, mystical structure but precise factual tone. ",
-  brutalist:
-    "Brutalist poster-card, strong grid, heavy black rules, austere typography, minimal palette, high-density information. ",
-  risograph:
-    "Risograph print card, visible ink texture, limited spot colors, slight registration imperfections, warm paper stock. ",
-  "field-guide":
-    "Scientific field-guide card, specimen plate, fine annotations, naturalist layout, quiet archival palette. ",
-  "monochrome-ink":
-    "Monochrome ink card, crisp black line art on white, ornamental frame, dense but legible hatching. ",
-  "luminous-minimal":
-    "Minimal luminous card, soft light, calm negative space, polished editorial composition, restrained accent color. ",
-};
+const STYLE_PREFIXES = CARD_STYLE_PREFIXES;
 
 function slugify(text: string): string {
   const slug = text
@@ -310,7 +268,7 @@ async function writeCard(
  */
 export const model = {
   type: "@alvagante/content-card",
-  version: "2026.06.21.1",
+  version: "2026.06.23.1",
   globalArguments: z.object({
     apiKey: z.string().optional().meta({ sensitive: true }),
     outputDir: z.string().optional(),

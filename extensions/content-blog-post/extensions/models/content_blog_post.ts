@@ -1,14 +1,20 @@
 import { z } from "npm:zod@4";
+import {
+  type ApiFormat,
+  ApiFormatSchema,
+  buildRequest,
+  extractContent,
+  type Persona,
+  PERSONA_DIRECTIVES,
+  PersonaSchema,
+  resolveBaseUrl,
+  type SkillLevel,
+  SkillLevelSchema,
+} from "../../../../shared/content_shared.ts";
 
-const SkillLevelSchema = z.enum(["novice", "intermediate", "senior", "guru"]);
 const OutputLengthSchema = z.enum(["short", "medium", "long"]);
-const PersonaSchema = z.enum(["neutral", "alvabot", "abnormalia"]);
-const ApiFormatSchema = z.enum(["anthropic", "openai-compat"]);
 
-type SkillLevel = z.infer<typeof SkillLevelSchema>;
 type OutputLength = z.infer<typeof OutputLengthSchema>;
-type Persona = z.infer<typeof PersonaSchema>;
-type ApiFormat = z.infer<typeof ApiFormatSchema>;
 
 const PostSchema = z.object({
   title: z.string(),
@@ -58,114 +64,11 @@ const SKILL_LEVEL_DIRECTIVES: Record<string, string> = {
     "Skill level: GURU\nWrite for domain experts and active practitioners at the frontier. Treat the reader as a peer. Engage with nuance, contested ideas, emerging patterns, second-order effects, and open problems. Dense technical depth is expected and welcome. No hand-holding.",
 };
 
-const PERSONA_DIRECTIVES: Record<string, string> = {
-  neutral: "",
-  alvabot:
-    "Voice: Write as Alessandro Franceschi (example42 blog). First person, pragmatic, occasionally self-ironic. Deeply experienced in DevOps, infrastructure automation, and Puppet. Direct and conversational tone with dry humor when natural. Reference real operational experience and the messiness of production. Not afraid to say what does not work or what tradeoffs cost in practice.",
-  abnormalia:
-    "Voice: Cyberpunk-inflected technical writing. Sharp, unsentimental, visually specific. Short punchy sentences alternate with dense technical depth. Culture and code intertwine. Trust the reader's intelligence completely. No corporate blandness, no filler phrases. The reader should feel they are getting the unfiltered view from someone who has lived in the machine. Sometimes self ironic.",
-};
-
 const MAX_TOKENS: Record<string, number> = {
   short: 1500,
   medium: 3500,
   long: 7000,
 };
-
-const DEFAULT_BASE_URL: Record<ApiFormat, string> = {
-  "anthropic": "https://api.anthropic.com",
-  "openai-compat": "http://localhost:11434/v1",
-};
-
-function resolveBaseUrl(apiFormat: ApiFormat, baseUrl?: string): string {
-  return (baseUrl ?? DEFAULT_BASE_URL[apiFormat]).replace(/\/$/, "");
-}
-
-function supportsAdaptiveThinking(modelId: string): boolean {
-  return (
-    modelId.includes("opus-4") ||
-    modelId.includes("fable") ||
-    modelId.includes("mythos")
-  );
-}
-
-function buildRequest(
-  apiFormat: ApiFormat,
-  apiKey: string | undefined,
-  baseUrl: string,
-  modelId: string,
-  systemPrompt: string,
-  userMessage: string,
-  maxTokens: number,
-): {
-  url: string;
-  headers: Record<string, string>;
-  body: Record<string, unknown>;
-} {
-  if (apiFormat === "anthropic") {
-    const headers: Record<string, string> = {
-      "content-type": "application/json",
-      "anthropic-version": "2023-06-01",
-    };
-    if (apiKey) headers["x-api-key"] = apiKey;
-    const body: Record<string, unknown> = {
-      model: modelId,
-      max_tokens: maxTokens,
-      system: systemPrompt,
-      messages: [{ role: "user", content: userMessage }],
-    };
-    if (supportsAdaptiveThinking(modelId)) {
-      body.thinking = { type: "adaptive" };
-    }
-    return { url: `${baseUrl}/v1/messages`, headers, body };
-  }
-
-  // openai-compat
-  const headers: Record<string, string> = {
-    "content-type": "application/json",
-  };
-  if (apiKey) headers["authorization"] = `Bearer ${apiKey}`;
-  return {
-    url: `${baseUrl}/chat/completions`,
-    headers,
-    body: {
-      model: modelId,
-      max_tokens: maxTokens,
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userMessage },
-      ],
-    },
-  };
-}
-
-function extractContent(
-  apiFormat: ApiFormat,
-  responseJson: unknown,
-): { text: string; stopReason: string } {
-  if (apiFormat === "anthropic") {
-    const result = responseJson as {
-      content: Array<{ type: string; text?: string }>;
-      stop_reason: string;
-    };
-    const text = result.content
-      .filter((block) => block.type === "text")
-      .map((block) => block.text ?? "")
-      .join("\n")
-      .trim();
-    return { text, stopReason: result.stop_reason };
-  }
-
-  // openai-compat
-  const result = responseJson as {
-    choices: Array<{ message: { content: string }; finish_reason: string }>;
-  };
-  const choice = result.choices[0];
-  return {
-    text: choice?.message?.content?.trim() ?? "",
-    stopReason: choice?.finish_reason ?? "unknown",
-  };
-}
 
 function buildSystemPrompt(
   skillLevel: SkillLevel,
@@ -249,7 +152,7 @@ async function storePost(
  */
 export const model = {
   type: "@alvagante/content-blog-post",
-  version: "2026.06.12.1",
+  version: "2026.06.23.1",
   globalArguments: z.object({
     apiFormat: ApiFormatSchema.default("anthropic"),
     apiKey: z.string().optional().meta({ sensitive: true }),
@@ -260,6 +163,12 @@ export const model = {
       toVersion: "2026.06.12.1",
       description:
         "Add keyless save method and custom persona descriptions; no globalArguments schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.23.1",
+      description:
+        "Consolidate LLM utilities into shared/content_shared.ts; no schema or behaviour changes.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

@@ -1,22 +1,29 @@
+import { Buffer } from "node:buffer";
 import { z } from "npm:zod@4";
+import Jimp from "npm:jimp@0.22.12";
+import {
+  type Background,
+  BackgroundSchema,
+  type Branding,
+  BrandingSchema,
+  IMAGE_STYLE_PREFIXES,
+  type ImageFormat,
+  ImageFormatSchema,
+  type ImageStyle,
+  ImageStyleSchema,
+  type Quality,
+  QualitySchema,
+} from "../../../../shared/content_shared.ts";
 
-const BackgroundSchema = z.enum(["opaque", "transparent", "auto"]);
-const OutputFormatSchema = z.enum(["png", "webp", "jpeg"]);
-const QualitySchema = z.enum(["auto", "low", "medium", "high"]);
+const StylePresetSchema = ImageStyleSchema;
+type StylePreset = ImageStyle;
+
+const OutputFormatSchema = ImageFormatSchema;
+type OutputFormat = ImageFormat;
+
 const OrientationSchema = z.enum(["wide", "portrait", "square"]);
-const StylePresetSchema = z.enum([
-  "clean",
-  "technical",
-  "ixen",
-  "editorial",
-  "blueprint",
-]);
 
-type Background = z.infer<typeof BackgroundSchema>;
-type OutputFormat = z.infer<typeof OutputFormatSchema>;
-type Quality = z.infer<typeof QualitySchema>;
 type Orientation = z.infer<typeof OrientationSchema>;
-type StylePreset = z.infer<typeof StylePresetSchema>;
 
 const InfographicSchema = z.object({
   title: z.string(),
@@ -46,6 +53,7 @@ type ModelContext = {
   globalArgs: {
     apiKey?: string;
     outputDir?: string;
+    branding?: Branding;
   };
   writeResource: (
     specName: "infographic",
@@ -72,18 +80,7 @@ const MIME_TYPES: Record<OutputFormat, string> = {
   jpeg: "image/jpeg",
 };
 
-const STYLE_PREFIXES: Record<StylePreset, string> = {
-  clean:
-    "Modern clean information design, precise hierarchy, sober accent colors, ample whitespace, accessible contrast. ",
-  technical:
-    "Technical systems infographic, diagrams, flows, labeled blocks, restrained palette, engineering-document clarity. ",
-  ixen:
-    "Near-white technical zine aesthetic with black ink, one strong red accent (#cc0000), sparse 2005 web sensibility, philosophical but legible. ",
-  editorial:
-    "Magazine editorial infographic, strong composition, refined typography, visual storytelling, clear visual rhythm. ",
-  blueprint:
-    "Blueprint-style information graphic with fine white linework on deep navy, dimension lines, callouts, precise schematic layout. ",
-};
+const STYLE_PREFIXES = IMAGE_STYLE_PREFIXES;
 
 const DEFAULT_SIZE: Record<Orientation, string> = {
   wide: "1536x1024",
@@ -202,6 +199,21 @@ async function callImagesApi(
 
 function decodeBase64(b64: string): Uint8Array {
   return Uint8Array.from(atob(b64), (char) => char.charCodeAt(0));
+}
+
+async function overlayLogo(
+  imageBytes: Uint8Array,
+  logoPath: string,
+): Promise<Uint8Array> {
+  const base = await Jimp.read(Buffer.from(imageBytes));
+  const logo = await Jimp.read(logoPath);
+  const targetW = Math.round(base.getWidth() * 0.12);
+  logo.resize(targetW, Jimp.AUTO);
+  const x = base.getWidth() - logo.getWidth() - 16;
+  const y = base.getHeight() - logo.getHeight() - 16;
+  base.composite(logo, x, y);
+  const buf = await base.getBufferAsync(base.getMIME());
+  return new Uint8Array(buf);
 }
 
 function renderInfographicPage(
@@ -640,10 +652,11 @@ async function writeInfographic(
  */
 export const model = {
   type: "@alvagante/content-infographic",
-  version: "2026.06.22.1",
+  version: "2026.06.23.1",
   globalArguments: z.object({
     apiKey: z.string().optional().meta({ sensitive: true }),
     outputDir: z.string().optional(),
+    branding: BrandingSchema.optional(),
   }),
   resources: {
     infographic: {
@@ -759,7 +772,19 @@ export const model = {
           apiKey,
           requestBody,
         );
-        const imageBytes = decodeBase64(b64Json);
+        let imageBytes = decodeBase64(b64Json);
+        let imageB64 = b64Json;
+        const branding = context.globalArgs.branding;
+        if (branding?.logo) {
+          if (args.format === "webp") {
+            context.logger.info(
+              "Logo overlay skipped — WebP output not supported for compositing",
+            );
+          } else {
+            imageBytes = await overlayLogo(imageBytes, branding.logo);
+            imageB64 = Buffer.from(imageBytes).toString("base64");
+          }
+        }
         const generatedAt = new Date().toISOString();
         const metadata: InfographicMetadata = {
           title,
@@ -787,7 +812,7 @@ export const model = {
           context,
           metadata,
           imageBytes,
-          b64Json,
+          imageB64,
           outputDir,
         );
       },
@@ -845,7 +870,19 @@ export const model = {
         const htmlFilename = args.htmlFilename ?? buildHtmlFilename(title);
         const outputDir = args.outputDir ?? context.globalArgs.outputDir;
         const prompt = `External infographic image for ${title}`;
-        const imageBytes = decodeBase64(args.imageBase64);
+        let imageBytes = decodeBase64(args.imageBase64);
+        let imageB64 = args.imageBase64;
+        const branding = context.globalArgs.branding;
+        if (branding?.logo) {
+          if (args.format === "webp") {
+            context.logger.info(
+              "Logo overlay skipped — WebP output not supported for compositing",
+            );
+          } else {
+            imageBytes = await overlayLogo(imageBytes, branding.logo);
+            imageB64 = Buffer.from(imageBytes).toString("base64");
+          }
+        }
         const generatedAt = new Date().toISOString();
         const metadata: InfographicMetadata = {
           title,
@@ -872,7 +909,7 @@ export const model = {
           context,
           metadata,
           imageBytes,
-          args.imageBase64,
+          imageB64,
           outputDir,
         );
       },

@@ -1,24 +1,25 @@
+import { Buffer } from "node:buffer";
 import { z } from "npm:zod@4";
+import Jimp from "npm:jimp@0.22.12";
+import {
+  type Background,
+  BackgroundSchema,
+  type Branding,
+  BrandingSchema,
+  IMAGE_STYLE_PREFIXES,
+  type ImageFormat,
+  ImageFormatSchema,
+  type ImageStyle,
+  ImageStyleSchema,
+  type Quality,
+  QualitySchema,
+} from "../../../../shared/content_shared.ts";
 
-const BackgroundSchema = z.enum(["opaque", "transparent", "auto"]);
-const OutputFormatSchema = z.enum(["png", "webp", "jpeg"]);
-const QualitySchema = z.enum(["auto", "low", "medium", "high"]);
-const StylePresetSchema = z.enum([
-  "none",
-  "ixen-dark",
-  "ixen-light",
-  "technical-diagram",
-  "cyberpunk-photo",
-  "educational",
-  "pencil-bw",
-  "pencil-color-accents",
-  "blueprint",
-]);
+const StylePresetSchema = ImageStyleSchema;
+type StylePreset = ImageStyle;
 
-type Background = z.infer<typeof BackgroundSchema>;
-type OutputFormat = z.infer<typeof OutputFormatSchema>;
-type Quality = z.infer<typeof QualitySchema>;
-type StylePreset = z.infer<typeof StylePresetSchema>;
+const OutputFormatSchema = ImageFormatSchema;
+type OutputFormat = ImageFormat;
 
 const ImageSchema = z.object({
   prompt: z.string(),
@@ -39,6 +40,7 @@ type ModelContext = {
   globalArgs: {
     apiKey?: string;
     outputDir?: string;
+    branding?: Branding;
   };
   writeResource: (
     specName: "image",
@@ -61,25 +63,7 @@ type ModelContext = {
 // Models that do NOT support the background / output_format parameters
 const NO_TRANSPARENCY_MODELS = new Set(["dall-e-3", "gpt-image-2"]);
 
-const STYLE_PREFIXES: Record<StylePreset, string> = {
-  none: "",
-  "ixen-dark":
-    "Dark near-black background (#111), red accent (#cc0000), sharp technical cyberpunk aesthetic. High contrast, moody atmosphere, neon-on-dark color palette. ",
-  "ixen-light":
-    "Pencil sketch base with selective colored ink traits. Fine graphite lines for structure and shading; specific edges, connectors, or key details rendered as deliberate strokes of colored ink pen in sober muted tones (slate blue, terracotta, sage, or warm sepia — one or two colors at most). White or transparent background. Composition is slightly surrealist but restrained — technically accurate subject matter placed in quietly unexpected spatial relationships or with calm dreamlike proportions, closer to Magritte or De Chirico than Dali. Composed, not chaotic. ",
-  "technical-diagram":
-    "Clean white background, schematic blueprint style. Precise technical drawing, minimal color palette with blue or grey accents. Scientific and architectural feel. ",
-  "cyberpunk-photo":
-    "Photorealistic. Urban environment with neon lights, rain-slicked surfaces, high-tech low-life aesthetic. Cinematic lighting, rich atmospheric detail. ",
-  "educational":
-    "Clean bright background, friendly and approachable. Clear visual hierarchy. Textbook or infographic style. Accessible color palette. ",
-  "pencil-bw":
-    "Hand-drawn pencil illustration, technical and artistic. Fine pencil lines, cross-hatching for shading, precise technical detail combined with expressive draftsmanship. Strictly black and white — no color whatsoever, pure graphite tones. Transparent or white background. ",
-  "pencil-color-accents":
-    "Hand-drawn pencil illustration with selective color accents. Predominantly black and white pencil work with fine lines and cross-hatching. One or two focal elements — the most important or interesting parts of the subject — pop with isolated flashes of vivid color; everything else remains strict monochrome pencil. Transparent or white background. ",
-  "blueprint":
-    "Architectural and engineering blueprint. Fine precise white lines on deep navy blue (#003366). Orthographic or isometric projection, dimension lines with arrows, leader annotations, section cuts, hatching for materials. Classic drafting-table aesthetic, technical precision. ",
-};
+const STYLE_PREFIXES = IMAGE_STYLE_PREFIXES;
 
 const MIME_TYPES: Record<OutputFormat, string> = {
   png: "image/png",
@@ -173,6 +157,21 @@ function decodeBase64(b64: string): Uint8Array {
   return Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
 }
 
+async function overlayLogo(
+  imageBytes: Uint8Array,
+  logoPath: string,
+): Promise<Uint8Array> {
+  const base = await Jimp.read(Buffer.from(imageBytes));
+  const logo = await Jimp.read(logoPath);
+  const targetW = Math.round(base.getWidth() * 0.12);
+  logo.resize(targetW, Jimp.AUTO);
+  const x = base.getWidth() - logo.getWidth() - 16;
+  const y = base.getHeight() - logo.getHeight() - 16;
+  base.composite(logo, x, y);
+  const buf = await base.getBufferAsync(base.getMIME());
+  return new Uint8Array(buf);
+}
+
 /**
  * Image generator using the OpenAI Images API. Defaults to gpt-image-1.5
  * (the latest model) which supports transparent PNG output, style presets,
@@ -182,10 +181,11 @@ function decodeBase64(b64: string): Uint8Array {
  */
 export const model = {
   type: "@alvagante/content-image",
-  version: "2026.06.15.2",
+  version: "2026.06.23.1",
   globalArguments: z.object({
     apiKey: z.string().optional().meta({ sensitive: true }),
     outputDir: z.string().optional(),
+    branding: BrandingSchema.optional(),
   }),
   resources: {
     image: {
@@ -277,7 +277,18 @@ export const model = {
           apiKey,
           requestBody,
         );
-        const imageBytes = decodeBase64(b64Json);
+        let imageBytes = decodeBase64(b64Json);
+
+        const branding = context.globalArgs.branding;
+        if (branding?.logo) {
+          if (args.format === "webp") {
+            context.logger.info(
+              "Logo overlay skipped — WebP output not supported for compositing",
+            );
+          } else {
+            imageBytes = await overlayLogo(imageBytes, branding.logo);
+          }
+        }
 
         const writer = context.createFileWriter("imageFile", "imageFile", {
           contentType: MIME_TYPES[args.format],

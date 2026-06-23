@@ -78,7 +78,7 @@ Common arguments:
 | `brief`              | Extra context                               | -                                  |
 | `text`               | Existing post copy                          | Generated when absent              |
 | `contentKind`        | `text`, `text-image`, `short`, `cards`      | Platform default                   |
-| `persona`            | `neutral`, `alvabot`, `abnormalia`          | `neutral`                          |
+| `persona`            | `neutral`, `alvabot`, `cybergeek`, `abnormalia`, `noir`, `glitchpoet`, `fieldnotes`, `oracle`, `baroque`, `deadpan`, `gonzo`, `punkprof` | `neutral`                          |
 | `personaDescription` | Custom voice directive                      | -                                  |
 | `hashtags`           | String array                                | `[]`                               |
 | `mentions`           | String array                                | `[]`                               |

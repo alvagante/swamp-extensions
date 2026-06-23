@@ -65,6 +65,8 @@ Style presets prepend a prompt prefix that shapes the visual aesthetic:
 | `pencil-bw` | Hand-drawn pencil illustration, technical and artistic. Strict B&W graphite, cross-hatching, precise detail. | `transparent` |
 | `pencil-color-accents` | B&W pencil with selective color accents — one or two focal elements pop in vivid color, everything else monochrome. | `transparent` |
 | `blueprint` | Engineering/architectural blueprint. Fine white lines on deep navy (#003366). Dimension lines, annotations, orthographic projections. | `opaque` or `transparent` |
+| `clean` | Modern clean composition, precise hierarchy, sober accent colors, ample whitespace. | `opaque` |
+| `editorial` | Magazine editorial aesthetic, strong composition, refined typography, visual storytelling. | `opaque` |
 
 ## Composing with content-ixen
 

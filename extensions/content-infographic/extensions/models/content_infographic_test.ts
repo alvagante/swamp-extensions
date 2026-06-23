@@ -59,7 +59,7 @@ Deno.test("generate writes infographic image, HTML, and metadata", async () => {
         title: "Puppet Catalog Infographic",
         details: "Compile phases, containment, resources, and edges.",
         keyPoints: ["Facts enter", "Catalog compiles", "Agent applies"],
-        style: "technical",
+        style: "technical-diagram",
         orientation: "wide",
         model: "gpt-image-2",
         background: "opaque",
@@ -147,7 +147,7 @@ Deno.test("generate rejects OpenAI errors before writing", async () => {
         {
           topic: "Puppet catalog compilation",
           keyPoints: [],
-          style: "technical",
+          style: "technical-diagram",
           orientation: "wide",
           model: "gpt-image-2",
           background: "opaque",

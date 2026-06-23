@@ -1,14 +1,22 @@
 import { z } from "npm:zod@4";
+import {
+  type ApiFormat,
+  ApiFormatSchema,
+  type Branding,
+  BrandingSchema,
+  buildRequest,
+  extractContent,
+  type Persona,
+  PERSONA_DIRECTIVES,
+  PersonaSchema,
+  resolveBaseUrl,
+  type SkillLevel,
+  SkillLevelSchema,
+} from "../../../../shared/content_shared.ts";
 
-const SkillLevelSchema = z.enum(["novice", "intermediate", "senior", "guru"]);
 const OutputLengthSchema = z.enum(["short", "medium", "long"]);
-const PersonaSchema = z.enum(["neutral", "alvabot", "abnormalia"]);
-const ApiFormatSchema = z.enum(["anthropic", "openai-compat"]);
 
-type SkillLevel = z.infer<typeof SkillLevelSchema>;
 type OutputLength = z.infer<typeof OutputLengthSchema>;
-type Persona = z.infer<typeof PersonaSchema>;
-type ApiFormat = z.infer<typeof ApiFormatSchema>;
 
 const MediaItemSchema = z.object({
   path: z.string(),
@@ -108,6 +116,7 @@ const PageSchema = z.object({
   model: z.string(),
   persona: PersonaSchema,
   personaDescription: z.string().optional(),
+  style: z.string().optional(),
   media: z.string().optional(),
   mediaItems: z.array(MediaItemSchema).optional(),
   concepts: z.array(ConceptSchema).optional(),
@@ -133,6 +142,7 @@ type ModelContext = {
     apiKey?: string;
     baseUrl?: string;
     outputDir?: string;
+    branding?: Branding;
   };
   writeResource: (
     specName: "page",
@@ -162,14 +172,6 @@ const SKILL_LEVEL_DIRECTIVES: Record<string, string> = {
     "Skill level: GURU\nThe reader is a domain expert. Treat them as a peer. Dense technical depth, contested ideas, edge cases, and internals are expected. The narrator can be allusive — the reader will keep up.",
 };
 
-const PERSONA_DIRECTIVES: Record<string, string> = {
-  neutral: "",
-  alvabot:
-    "Voice: Write as Alessandro Franceschi (example42 blog). First person, pragmatic, occasionally self-ironic. Deeply experienced in DevOps, infrastructure automation, and Puppet. Direct and conversational tone with dry humor when natural. Reference real operational experience and the messiness of production. Not afraid to say what does not work or what tradeoffs cost in practice.",
-  abnormalia:
-    "Voice: Cyberpunk-inflected technical writing. Sharp, unsentimental, visually specific. Short punchy sentences alternate with dense technical depth. Culture and code intertwine. Trust the reader's intelligence completely. No corporate blandness, no filler phrases. The reader should feel they are getting the unfiltered view from someone who has lived in the machine. Sometimes self ironic.",
-};
-
 const MAX_TOKENS: Record<string, number> = {
   short: 4000,
   medium: 8000,
@@ -187,23 +189,6 @@ function hasDanglingHtmlTag(html: string): boolean {
   if (lastOpen === -1) return false;
   const lastClose = html.lastIndexOf(">");
   return lastOpen > lastClose;
-}
-
-const DEFAULT_BASE_URL: Record<ApiFormat, string> = {
-  "anthropic": "https://api.anthropic.com",
-  "openai-compat": "http://localhost:11434/v1",
-};
-
-function resolveBaseUrl(apiFormat: ApiFormat, baseUrl?: string): string {
-  return (baseUrl ?? DEFAULT_BASE_URL[apiFormat]).replace(/\/$/, "");
-}
-
-function supportsAdaptiveThinking(modelId: string): boolean {
-  return (
-    modelId.includes("opus-4") ||
-    modelId.includes("fable") ||
-    modelId.includes("mythos")
-  );
 }
 
 async function generateBeginnerGuide(
@@ -274,84 +259,6 @@ Output format (strict):
     });
     return undefined;
   }
-}
-
-function buildRequest(
-  apiFormat: ApiFormat,
-  apiKey: string | undefined,
-  baseUrl: string,
-  modelId: string,
-  systemPrompt: string,
-  userMessage: string,
-  maxTokens: number,
-): {
-  url: string;
-  headers: Record<string, string>;
-  body: Record<string, unknown>;
-} {
-  if (apiFormat === "anthropic") {
-    const headers: Record<string, string> = {
-      "content-type": "application/json",
-      "anthropic-version": "2023-06-01",
-    };
-    if (apiKey) headers["x-api-key"] = apiKey;
-    const body: Record<string, unknown> = {
-      model: modelId,
-      max_tokens: maxTokens,
-      system: systemPrompt,
-      messages: [{ role: "user", content: userMessage }],
-    };
-    if (supportsAdaptiveThinking(modelId)) {
-      body.thinking = { type: "adaptive" };
-    }
-    return { url: `${baseUrl}/v1/messages`, headers, body };
-  }
-
-  // openai-compat
-  const headers: Record<string, string> = {
-    "content-type": "application/json",
-  };
-  if (apiKey) headers["authorization"] = `Bearer ${apiKey}`;
-  return {
-    url: `${baseUrl}/chat/completions`,
-    headers,
-    body: {
-      model: modelId,
-      max_tokens: maxTokens,
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userMessage },
-      ],
-    },
-  };
-}
-
-function extractContent(
-  apiFormat: ApiFormat,
-  responseJson: unknown,
-): { text: string; stopReason: string } {
-  if (apiFormat === "anthropic") {
-    const result = responseJson as {
-      content: Array<{ type: string; text?: string }>;
-      stop_reason: string;
-    };
-    const text = result.content
-      .filter((block) => block.type === "text")
-      .map((block) => block.text ?? "")
-      .join("\n")
-      .trim();
-    return { text, stopReason: result.stop_reason };
-  }
-
-  // openai-compat
-  const result = responseJson as {
-    choices: Array<{ message: { content: string }; finish_reason: string }>;
-  };
-  const choice = result.choices[0];
-  return {
-    text: choice?.message?.content?.trim() ?? "",
-    stopReason: choice?.finish_reason ?? "unknown",
-  };
 }
 
 const COMPONENT_VOCABULARY = `## HTML toolkit
@@ -439,8 +346,8 @@ Spread images across the page — not all at the top. Each should arrive where
 the narration earns it.
 
 Concept card (portrait playing card; when a card path is supplied for a concept,
-place it as a small float on the OPPOSITE side from the concept image, immediately
-after the concept-tools buttons):
+place it as a medium-small right-side card beside the relevant concept,
+immediately after the concept-tools buttons):
   <figure class="zoom float-right ixen-card-img small"><img src="./concept-1-card.png" alt="Concept name card"><figcaption>…</figcaption></figure>
 
 NEVER invent a path. If no images are provided, omit image elements entirely.
@@ -558,20 +465,20 @@ function buildUserMessage(
         : "   no external image path supplied; omit image elements for this concept";
       const card = cards?.[index];
       const cardLine = card
-        ? `\n   card image: ./${card.path} — place with class="zoom ixen-card-img small float-${
-          index % 2 === 0 ? "right" : "left"
-        }" immediately after the concept-tools buttons, on the opposite side from the concept image`
+        ? `\n   card image: ./${card.path} — place with class="zoom ixen-card-img small float-right" immediately after the concept-tools buttons, right-aligned beside this concept`
         : "";
       const detailLine = concept.details
         ? `\n   concept details:\n${concept.details}`
         : "";
-      return `${index + 1}. ${concept.name}\n${imageLine}${cardLine}${detailLine}`;
+      return `${
+        index + 1
+      }. ${concept.name}\n${imageLine}${cardLine}${detailLine}`;
     });
     parts.push(
       `Concepts to cover, in order:\n${lines.join("\n\n")}\n\n` +
         `For each concept, produce all of these:\n` +
         `- A zoomable image if an image path is supplied. The first concept image should be prominent near the opening; later concept images should sit beside their concept text. Alternate float-left / float-right.\n` +
-        `- A card image if a card path is supplied (use the exact class specified). Place it immediately after the concept-tools buttons on the specified side. Do not invent card paths.\n` +
+        `- A card image if a card path is supplied (use the exact class specified). Place it immediately after the concept-tools buttons, right-aligned beside the relevant concept. Do not invent card paths.\n` +
         `- A compact slide popup using class="popup concept-slide". It should feel like one useful technical slide, with a short heading and terse bullets.\n` +
         `- A more verbose explanatory popup using class="popup concept-note". This popup must be informative, direct, and non-Ixen: no first-person narrator, no poetic metaphor, no theatrical voice.\n` +
         `- Short Ixen glue text around it: fragmented, first-person, philosophical, inspiring, technically exact, with zero or more terminal commands and command-output popups where useful.\n` +
@@ -790,6 +697,8 @@ figure.ixen-infographic-img img { width: 100%; cursor: zoom-in; display: block; 
   font-size: 0.72rem; color: var(--dim); text-align: center;
 }
 .ixen-provenance-footer a { color: var(--dim); text-decoration: underline dotted; }
+.ixen-provenance-meta { margin-top: 0.25rem; }
+.ixen-provenance-meta span + span::before { content: " / "; color: #aaa; }
 .ixen-beginner-bar { margin-top: 0.45rem; }
 .beginner-guide h2 { margin: 0.5rem 0 0.75rem; }
 .beginner-guide p { margin: 0.75rem 0; }
@@ -801,6 +710,12 @@ button.ixen-accent-btn {
   padding: 0.3rem 0.8rem; letter-spacing: 0.06em; text-transform: uppercase;
 }
 button.ixen-accent-btn:hover { background: #900; }
+figure.zoom.ixen-card-img {
+  float: right !important;
+  width: min(180px, 28%) !important;
+  margin: 0.2rem 0 1rem 1.35rem !important;
+  clear: right;
+}
 figure.zoom.ixen-card-img img {
   box-shadow: 2px 4px 14px rgba(0,0,0,0.28); border: 1px solid #ccc; border-radius: 3px;
 }
@@ -815,6 +730,33 @@ figure.zoom.ixen-card-img img {
   box-shadow: 2px 4px 12px rgba(0,0,0,0.22); border: 1px solid #ccc; border-radius: 3px;
 }
 .ixen-card-deck-grid figcaption { text-align: center; }
+.ixen-card-hover {
+  position: fixed; top: 50%; right: max(1rem, calc((100vw - 920px) / 2 + 1rem));
+  transform: translateY(-50%); z-index: 75; pointer-events: none;
+  background: #fff; padding: 0.3rem; border: 1px solid #999;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.35);
+}
+.ixen-card-hover img {
+  display: block; width: auto; height: auto;
+  max-width: min(360px, 42vw); max-height: 82vh;
+}
+@media (max-width: 720px) {
+  figure.zoom.ixen-card-img {
+    width: min(150px, 42%) !important;
+    margin-left: 1rem !important;
+  }
+  .ixen-card-hover {
+    left: 50%; right: auto; transform: translate(-50%, -50%);
+  }
+  .ixen-card-hover img { max-width: 86vw; max-height: 78vh; }
+}
+.ixen-brand-footer {
+  clear: both; margin: 1.5rem 0 0; padding: 0.5rem 0;
+  border-top: 1px solid #333; text-align: right; opacity: 0.7;
+}
+.ixen-brand-footer img { height: 20px; width: auto; vertical-align: middle; }
+.ixen-brand-footer a { text-decoration: none; color: inherit; }
+.ixen-brand-footer:hover { opacity: 1; }
 `;
 
 const MUSIC_PLAYER_CSS = `
@@ -943,18 +885,64 @@ const PAGE_JS = `
   buildConceptIndexPopup("concept-slide", "ixen-all-slides", "All slides");
   buildConceptIndexPopup("concept-note", "ixen-all-notes", "All notes");
 
-  document.querySelectorAll(".popup-trigger").forEach(function (btn) {
-    btn.addEventListener("click", function () {
-      var popup = document.getElementById(btn.getAttribute("data-popup"));
-      if (!popup) return;
+  function openPopup(popupId) {
+    var popup = document.getElementById(popupId);
+    if (!popup) return;
+    closePopups();
+    popup.hidden = false;
+    backdrop.hidden = false;
+  }
+
+  function openLightbox(img) {
+    closeCardHover();
+    var box = document.createElement("div");
+    box.className = "lightbox";
+    var big = document.createElement("img");
+    big.src = img.src;
+    big.alt = img.alt;
+    box.appendChild(big);
+    box.addEventListener("click", function () { box.remove(); });
+    document.body.appendChild(box);
+  }
+
+  function cardPreviewImage(target) {
+    return target && target.closest
+      ? target.closest("figure.ixen-card-img img, .ixen-card-deck-grid figure.zoom img")
+      : null;
+  }
+
+  function closeCardHover() {
+    document.querySelectorAll(".ixen-card-hover").forEach(function (p) { p.remove(); });
+  }
+
+  function openCardHover(img) {
+    closeCardHover();
+    var preview = document.createElement("div");
+    preview.className = "ixen-card-hover";
+    var big = document.createElement("img");
+    big.src = img.src;
+    big.alt = img.alt;
+    preview.appendChild(big);
+    document.body.appendChild(preview);
+  }
+
+  document.addEventListener("click", function (e) {
+    var close = e.target.closest ? e.target.closest(".popup-close") : null;
+    if (close) {
       closePopups();
-      popup.hidden = false;
-      backdrop.hidden = false;
-    });
+      return;
+    }
+
+    var trigger = e.target.closest ? e.target.closest(".popup-trigger") : null;
+    if (trigger) {
+      openPopup(trigger.getAttribute("data-popup"));
+      return;
+    }
+
+    var zoomImg = e.target.closest ? e.target.closest("figure.zoom img") : null;
+    if (zoomImg) openLightbox(zoomImg);
   });
-  document.querySelectorAll(".popup-close").forEach(function (btn) {
-    btn.addEventListener("click", closePopups);
-  });
+
   backdrop.addEventListener("click", closePopups);
 
   var versionSelect = document.getElementById("ixen-version-select");
@@ -978,23 +966,22 @@ const PAGE_JS = `
     });
   }
 
-  document.querySelectorAll("figure.zoom img").forEach(function (img) {
-    img.addEventListener("click", function () {
-      var box = document.createElement("div");
-      box.className = "lightbox";
-      var big = document.createElement("img");
-      big.src = img.src;
-      big.alt = img.alt;
-      box.appendChild(big);
-      box.addEventListener("click", function () { box.remove(); });
-      document.body.appendChild(box);
-    });
+  document.addEventListener("mouseover", function (e) {
+    var img = cardPreviewImage(e.target);
+    if (!img || (e.relatedTarget && img.contains(e.relatedTarget))) return;
+    openCardHover(img);
+  });
+  document.addEventListener("mouseout", function (e) {
+    var img = cardPreviewImage(e.target);
+    if (!img || (e.relatedTarget && img.contains(e.relatedTarget))) return;
+    closeCardHover();
   });
 
   document.addEventListener("keydown", function (e) {
     if (e.key === "Escape") {
       closePopups();
       document.querySelectorAll(".lightbox").forEach(function (b) { b.remove(); });
+      closeCardHover();
     }
   });
 })();
@@ -1282,8 +1269,26 @@ function renderByline(
   return `<span class="byline">${text}</span>`;
 }
 
-function renderFooterProvenance(): string {
-  return `<footer class="ixen-provenance-footer"><a href="https://swamp-club.com/extensions/@alvagante/content-ixen" target="_blank" rel="noopener noreferrer">Generated with Swamp extension @alvagante/content-ixen</a></footer>`;
+function renderPersonaLabel(page: IxenPage): string | undefined {
+  if (page.personaDescription?.trim()) {
+    return page.persona === "neutral"
+      ? "custom voice"
+      : `${page.persona} + custom voice`;
+  }
+  return page.persona === "neutral" ? undefined : page.persona;
+}
+
+function renderFooterProvenance(page: IxenPage): string {
+  const meta = [
+    renderPersonaLabel(page),
+    page.style?.trim() ? `style: ${page.style.trim()}` : undefined,
+  ].filter((item): item is string => Boolean(item)).map((item) =>
+    `<span>${escapeHtml(item)}</span>`
+  );
+  const metaHtml = meta.length > 0
+    ? `<div class="ixen-provenance-meta">${meta.join("")}</div>`
+    : "";
+  return `<footer class="ixen-provenance-footer"><a href="https://swamp-club.com/extensions/@alvagante/content-ixen" target="_blank" rel="noopener noreferrer">Generated with Swamp extension @alvagante/content-ixen</a>${metaHtml}</footer>`;
 }
 
 function hasPopupClass(content: string, className: string): boolean {
@@ -1411,9 +1416,23 @@ ${popups.join("\n")}`
     .replace(/^\n/, "");
 }
 
+function renderBrandFooter(branding: Branding | undefined): string {
+  if (!branding?.logo && !branding?.name) return "";
+  const inner = branding.logo
+    ? `<img src="${escapeHtml(branding.logo)}" alt="${
+      escapeHtml(branding.name ?? "")
+    }">`
+    : escapeHtml(branding.name ?? "");
+  const content = branding.link
+    ? `<a href="${escapeHtml(branding.link)}">${inner}</a>`
+    : inner;
+  return `\n<footer class="ixen-brand-footer">${content}</footer>`;
+}
+
 function renderPage(
   page: IxenPage,
   versions: number[] = [],
+  branding?: Branding,
 ): string {
   const title = escapeHtml(page.title);
   const provenanceTs = escapeHtml(formatTimestamp(page.generatedAt));
@@ -1478,8 +1497,8 @@ ${page.content}
 </main>
 ${infographicSection}
 ${cheatsheetSection}
-${footerContent}
-${renderFooterProvenance()}
+${footerContent}${renderBrandFooter(branding)}
+${renderFooterProvenance(page)}
 <script>${PAGE_JS}</script>
 ${playerHtml}
 ${playerJs}${beginnerPopup}${cardDeckPopup}
@@ -1522,7 +1541,11 @@ async function storePage(
     pageWithVersions,
   );
 
-  const html = renderPage(pageWithVersions, versions);
+  const html = renderPage(
+    pageWithVersions,
+    versions,
+    context.globalArgs.branding,
+  );
   const writer = context.createFileWriter("html", "html");
   const fileHandle = await writer.writeText(html);
 
@@ -1565,7 +1588,7 @@ async function storePage(
  */
 export const model = {
   type: "@alvagante/content-ixen",
-  version: "2026.06.22.1",
+  version: "2026.06.23.1",
   upgrades: [
     {
       toVersion: "2026.06.15.1",
@@ -1633,12 +1656,25 @@ export const model = {
         "Add cards[] input (per-concept card images from @alvagante/content-card, matched by index). Each card renders alongside its concept opposite the concept image. A 'Card Deck' accent button opens a popup grid of all cards. Beginner's intro button also uses the new accent style. Remove SVG generation instructions — images are caller-supplied only.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.06.22.2",
+      description:
+        "Place concept cards as medium-small right-side cards, add full-card hover previews, and use delegated popup/lightbox handlers so card deck cards can be previewed and zoomed.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.23.1",
+      description:
+        "Consolidate LLM utilities, image-schema types, and style prefix maps into shared/content_shared.ts; add branding globalArg (logo footer) and provenance persona/style metadata; no required resource schema changes.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: z.object({
     apiFormat: ApiFormatSchema.default("anthropic"),
     apiKey: z.string().optional().meta({ sensitive: true }),
     baseUrl: z.string().optional(),
     outputDir: z.string().optional(),
+    branding: BrandingSchema.optional(),
   }),
   resources: {
     page: {
@@ -1706,6 +1742,9 @@ export const model = {
         model: z.string().default("claude-opus-4-8"),
         persona: PersonaSchema.default("neutral"),
         personaDescription: z.string().min(1).optional(),
+        style: z.string().min(1).optional().describe(
+          "Optional style label rendered in the provenance footer, usually the visual style preset used for the surrounding generated media.",
+        ),
         credits: z.string().optional(),
         outputDir: z.string().optional(),
         versionOutput: z.boolean().default(true).describe(
@@ -1753,6 +1792,7 @@ export const model = {
           model: string;
           persona: Persona;
           personaDescription?: string;
+          style?: string;
           credits?: string;
           outputDir?: string;
           versionOutput: boolean;
@@ -1894,6 +1934,7 @@ export const model = {
             model: args.model,
             persona: args.persona,
             personaDescription: args.personaDescription,
+            style: args.style,
             media: args.media,
             mediaItems: resolveMediaItems(args.media, args.mediaItems),
             concepts: resolveConcepts(args.concepts, args.mediaItems),
@@ -1935,6 +1976,9 @@ export const model = {
         model: z.string().default("external"),
         persona: PersonaSchema.default("neutral"),
         personaDescription: z.string().min(1).optional(),
+        style: z.string().min(1).optional().describe(
+          "Optional style label rendered in the provenance footer, usually the visual style preset used for the surrounding generated media.",
+        ),
         credits: z.string().optional(),
         outputDir: z.string().optional(),
         versionOutput: z.boolean().default(true),
@@ -1982,6 +2026,7 @@ export const model = {
           model: string;
           persona: Persona;
           personaDescription?: string;
+          style?: string;
           credits?: string;
           outputDir?: string;
           versionOutput: boolean;
@@ -2034,6 +2079,7 @@ export const model = {
             model: args.model,
             persona: args.persona,
             personaDescription: args.personaDescription,
+            style: args.style,
             media: args.media,
             mediaItems: resolveMediaItems(args.media, args.mediaItems),
             concepts: resolveConcepts(args.concepts, args.mediaItems),
