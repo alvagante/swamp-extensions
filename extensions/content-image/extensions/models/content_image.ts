@@ -1,6 +1,5 @@
-import { Buffer } from "node:buffer";
 import { z } from "npm:zod@4";
-import Jimp from "npm:jimp@0.22.12";
+import { Jimp } from "npm:jimp@1.6.1";
 import {
   type Background,
   BackgroundSchema,
@@ -160,15 +159,16 @@ function decodeBase64(b64: string): Uint8Array {
 async function overlayLogo(
   imageBytes: Uint8Array,
   logoPath: string,
+  mimeType: string,
 ): Promise<Uint8Array> {
-  const base = await Jimp.read(Buffer.from(imageBytes));
+  const base = await Jimp.fromBuffer(imageBytes);
   const logo = await Jimp.read(logoPath);
-  const targetW = Math.round(base.getWidth() * 0.12);
-  logo.resize(targetW, Jimp.AUTO);
-  const x = base.getWidth() - logo.getWidth() - 16;
-  const y = base.getHeight() - logo.getHeight() - 16;
+  const targetW = Math.round(base.width * 0.12);
+  logo.resize({ width: targetW });
+  const x = base.width - logo.width - 16;
+  const y = base.height - logo.height - 16;
   base.composite(logo, x, y);
-  const buf = await base.getBufferAsync(base.getMIME());
+  const buf = await base.getBuffer(mimeType);
   return new Uint8Array(buf);
 }
 
@@ -181,7 +181,7 @@ async function overlayLogo(
  */
 export const model = {
   type: "@alvagante/content-image",
-  version: "2026.06.23.1",
+  version: "2026.06.23.2",
   globalArguments: z.object({
     apiKey: z.string().optional().meta({ sensitive: true }),
     outputDir: z.string().optional(),
@@ -286,7 +286,11 @@ export const model = {
               "Logo overlay skipped — WebP output not supported for compositing",
             );
           } else {
-            imageBytes = await overlayLogo(imageBytes, branding.logo);
+            imageBytes = await overlayLogo(
+              imageBytes,
+              branding.logo,
+              MIME_TYPES[args.format],
+            );
           }
         }
 

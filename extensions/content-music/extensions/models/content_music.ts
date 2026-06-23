@@ -323,7 +323,7 @@ async function callMusicApi(
 
 export const model = {
   type: "@alvagante/content-music",
-  version: "2026.06.19.1",
+  version: "2026.06.23.3",
   globalArguments: z.object({
     apiKey: z.string().optional().meta({ sensitive: true }),
     anthropicApiKey: z.string().optional().meta({ sensitive: true }),
