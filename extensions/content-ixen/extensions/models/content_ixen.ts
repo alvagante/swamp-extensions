@@ -12,7 +12,7 @@ import {
   resolveBaseUrl,
   type SkillLevel,
   SkillLevelSchema,
-} from "../../../../shared/content_shared.ts";
+} from "./content_shared.ts";
 
 const OutputLengthSchema = z.enum(["short", "medium", "long"]);
 
@@ -1588,7 +1588,7 @@ async function storePage(
  */
 export const model = {
   type: "@alvagante/content-ixen",
-  version: "2026.06.23.1",
+  version: "2026.06.23.2",
   upgrades: [
     {
       toVersion: "2026.06.15.1",

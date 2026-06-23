@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@alvagante/content-image"
-version: "2026.06.23.2"
+version: "2026.06.23.3"
 description: "Generate images using the OpenAI Images API (gpt-image-1.5 by default). Supports transparent PNG output and 9 style presets: ixen-dark, ixen-light, pencil-bw, pencil-color-accents, blueprint, technical-diagram, cyberpunk-photo, educational, none. Optional outputDir for composing multi-media mini-sites alongside content-ixen pages."
 repository: "https://github.com/alvagante/swamp-extensions"
 paths:

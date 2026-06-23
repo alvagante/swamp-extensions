@@ -8,7 +8,7 @@ import {
   ImageStyleSchema,
   type Persona,
   PersonaSchema,
-} from "../../../../shared/content_shared.ts";
+} from "./content_shared.ts";
 
 const ContentKindSchema = z.enum(["text", "text-image", "short", "cards"]);
 const MediaKindSchema = z.enum(["image", "card", "video", "link"]);
@@ -207,7 +207,7 @@ export const PLATFORM_CONFIGS: Record<PlatformConfig["key"], PlatformConfig> = {
     key: "facebook",
     type: "@alvagante/content-social-facebook",
     label: "Facebook",
-    version: "2026.06.23.1",
+    version: "2026.06.23.2",
     targetCharacters: 800,
     shortCharacters: 180,
     hashtagTarget: 4,
@@ -221,7 +221,7 @@ export const PLATFORM_CONFIGS: Record<PlatformConfig["key"], PlatformConfig> = {
     key: "x",
     type: "@alvagante/content-social-x",
     label: "X",
-    version: "2026.06.23.1",
+    version: "2026.06.23.2",
     targetCharacters: 280,
     shortCharacters: 220,
     hashtagTarget: 2,
@@ -235,7 +235,7 @@ export const PLATFORM_CONFIGS: Record<PlatformConfig["key"], PlatformConfig> = {
     key: "linkedin",
     type: "@alvagante/content-social-linkedin",
     label: "LinkedIn",
-    version: "2026.06.23.1",
+    version: "2026.06.23.2",
     targetCharacters: 1300,
     shortCharacters: 300,
     hashtagTarget: 5,
@@ -249,7 +249,7 @@ export const PLATFORM_CONFIGS: Record<PlatformConfig["key"], PlatformConfig> = {
     key: "tiktok",
     type: "@alvagante/content-social-tiktok",
     label: "TikTok",
-    version: "2026.06.23.1",
+    version: "2026.06.23.2",
     targetCharacters: 300,
     shortCharacters: 150,
     hashtagTarget: 6,
@@ -263,7 +263,7 @@ export const PLATFORM_CONFIGS: Record<PlatformConfig["key"], PlatformConfig> = {
     key: "instagram",
     type: "@alvagante/content-social-instagram",
     label: "Instagram",
-    version: "2026.06.23.1",
+    version: "2026.06.23.2",
     targetCharacters: 2200,
     shortCharacters: 150,
     hashtagTarget: 12,

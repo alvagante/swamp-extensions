@@ -10,7 +10,7 @@ import {
   resolveBaseUrl,
   type SkillLevel,
   SkillLevelSchema,
-} from "../../../../shared/content_shared.ts";
+} from "./content_shared.ts";
 
 const OutputLengthSchema = z.enum(["short", "medium", "long"]);
 
@@ -152,7 +152,7 @@ async function storePost(
  */
 export const model = {
   type: "@alvagante/content-blog-post",
-  version: "2026.06.23.1",
+  version: "2026.06.23.2",
   globalArguments: z.object({
     apiFormat: ApiFormatSchema.default("anthropic"),
     apiKey: z.string().optional().meta({ sensitive: true }),

@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@alvagante/content-blog-post"
-version: "2026.06.23.1"
+version: "2026.06.23.2"
 description: "Generate publication-ready blog posts on any topic using Claude or any OpenAI-compatible endpoint, or save agent-written posts keylessly. Configurable skill level (novice/intermediate/senior/guru), output length, writing persona presets, and model selection."
 repository: "https://github.com/alvagante/swamp-extensions"
 models:

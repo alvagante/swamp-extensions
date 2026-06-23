@@ -609,7 +609,7 @@ async function fetchOembed(url: string) {
  */
 export const model = {
   type: "@alvagante/youtube-content-pack/generator",
-  version: "2026.05.22.1",
+  version: "2026.06.23.1",
   globalArguments: z.object({}),
   resources: {
     lookup: {

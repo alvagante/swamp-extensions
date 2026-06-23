@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@alvagante/youtube-content-pack"
-version: "2026.05.22.1"
+version: "2026.06.23.1"
 description: "Generate timestamped publishing assets from owned or user-supplied YouTube video metadata and transcripts."
 repository: "https://github.com/alvagante/swamp-extensions"
 models:

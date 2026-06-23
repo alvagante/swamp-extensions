@@ -13,7 +13,7 @@ import {
   ImageStyleSchema,
   type Quality,
   QualitySchema,
-} from "../../../../shared/content_shared.ts";
+} from "./content_shared.ts";
 
 const StylePresetSchema = ImageStyleSchema;
 type StylePreset = ImageStyle;
@@ -653,7 +653,7 @@ async function writeInfographic(
  */
 export const model = {
   type: "@alvagante/content-infographic",
-  version: "2026.06.23.2",
+  version: "2026.06.23.3",
   globalArguments: z.object({
     apiKey: z.string().optional().meta({ sensitive: true }),
     outputDir: z.string().optional(),

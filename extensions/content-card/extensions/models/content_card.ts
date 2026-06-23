@@ -11,7 +11,7 @@ import {
   QualitySchema,
   type SkillLevel,
   SkillLevelSchema,
-} from "../../../../shared/content_shared.ts";
+} from "./content_shared.ts";
 
 const StylePresetSchema = CardStyleSchema;
 type StylePreset = CardStyle;
@@ -268,7 +268,7 @@ async function writeCard(
  */
 export const model = {
   type: "@alvagante/content-card",
-  version: "2026.06.23.1",
+  version: "2026.06.23.2",
   globalArguments: z.object({
     apiKey: z.string().optional().meta({ sensitive: true }),
     outputDir: z.string().optional(),

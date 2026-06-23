@@ -9,7 +9,7 @@ import {
   resolveBaseUrl,
   type SkillLevel,
   SkillLevelSchema,
-} from "../../../../shared/content_shared.ts";
+} from "./content_shared.ts";
 
 const VerbositySchema = z.enum(["minimal", "standard", "detailed"]);
 const CompletenessSchema = z.enum(["essential", "comprehensive", "exhaustive"]);
@@ -670,7 +670,7 @@ function deriveTitle(
  */
 export const model = {
   type: "@alvagante/content-cheatsheet",
-  version: "2026.06.23.1",
+  version: "2026.06.23.2",
 
   globalArguments: z.object({
     apiFormat: ApiFormatSchema.default("anthropic"),
