@@ -1,6 +1,6 @@
 # @alvagante/content-image
 
-Generate images using the OpenAI Images API. Defaults to **gpt-image-1.5** — the latest model — which supports transparent PNG output, flexible sizes, and quality control. Part of the `@alvagante` content-media suite.
+Generate images using the OpenAI Images API. Defaults to **gpt-image-2** for current image quality, flexible sizes, and quality control. Part of the `@alvagante` content-media suite.
 
 ## Installation
 
@@ -37,7 +37,7 @@ Generate an image from a text prompt.
 |----------|------|---------|-------------|
 | `prompt` | string | required | Image description |
 | `style` | enum | `none` | Style preset (see below) |
-| `model` | string | `gpt-image-1.5` | OpenAI model ID |
+| `model` | string | `gpt-image-2` | OpenAI model ID |
 | `background` | enum | `opaque` | `opaque`, `transparent`, or `auto` |
 | `size` | string | `1024x1024` | Image dimensions (see model constraints) |
 | `quality` | enum | `auto` | `auto`, `low`, `medium`, or `high` |
@@ -46,7 +46,21 @@ Generate an image from a text prompt.
 
 **Transparent background** requires `gpt-image-1` or `gpt-image-1.5`. Using `background: transparent` with `dall-e-3` or `gpt-image-2` throws an error.
 
+**Common size values:**
+
+| Size | Use |
+|------|-----|
+| `1024x1024` | Square default |
+| `1536x1024` | Landscape |
+| `1024x1536` | Portrait |
+| `2048x2048` | 2K square |
+| `2048x1152` | 2K landscape |
+| `3840x2160` | 4K landscape |
+| `2160x3840` | 4K portrait |
+| `auto` | Let the model choose |
+
 **Size constraints by model:**
+- `gpt-image-2`: any size where both edges are multiples of `16`, max edge is `3840px`, aspect ratio is no more than `3:1`, and total pixels are `655360` to `8294400`
 - `gpt-image-1.5`: `1024x1024`, `1024x1536`, `1536x1024`, `auto`
 - `dall-e-3`: `1024x1024`, `1792x1024`, `1024x1792`
 
@@ -77,7 +91,7 @@ Style presets prepend a prompt prefix that shapes the visual aesthetic:
 swamp model method run my-image generate \
   --arg prompt="A Docker container as a steel shipping container in a neon port" \
   --arg style=ixen-dark \
-  --arg background=transparent \
+  --arg size=1536x1024 \
   --arg filename=hero.png
 
 # Reference it in the Ixen page

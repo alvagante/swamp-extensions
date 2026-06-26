@@ -17,6 +17,7 @@ Deno.test("generate writes infographic image, HTML, and metadata", async () => {
     );
     const body = JSON.parse(String(init?.body));
     assert(body.model === "gpt-image-2", "expected default image model");
+    assert(body.background === "opaque", "expected background setting");
     assert(
       body.prompt.includes("Puppet Catalog Infographic"),
       "expected title in prompt",
@@ -102,7 +103,7 @@ Deno.test("generate writes infographic image, HTML, and metadata", async () => {
   const html = await Deno.readTextFile(`${outputDir}/catalog-infographic.html`);
   assert(image.length === 3, "expected image bytes in outputDir");
   assert(
-    html.includes('<img src="./catalog.png"'),
+    html.includes('src="./catalog.png"'),
     "expected relative image reference",
   );
 });

@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@alvagante/content-card"
-version: "2026.06.23.2"
+version: "2026.06.24.1"
 description: "Generate playing-card shaped content images using OpenAI image generation. Adds card sequence, skill-level corner numbering, topic icons, optional logo hints, and expanded card-specific style presets."
 repository: "https://github.com/alvagante/swamp-extensions"
 paths:

@@ -1,3 +1,4 @@
+import { Buffer } from "node:buffer";
 import { z } from "npm:zod@4";
 import { Jimp } from "npm:jimp@1.6.1";
 import {
@@ -59,14 +60,20 @@ type ModelContext = {
   };
 };
 
-// Models that do NOT support the background / output_format parameters
-const NO_TRANSPARENCY_MODELS = new Set(["dall-e-3", "gpt-image-2"]);
+const NO_TRANSPARENT_BACKGROUND_MODELS = new Set(["dall-e-3", "gpt-image-2"]);
 
 const STYLE_PREFIXES = IMAGE_STYLE_PREFIXES;
 
 const MIME_TYPES: Record<OutputFormat, string> = {
   png: "image/png",
   webp: "image/webp",
+  jpeg: "image/jpeg",
+};
+const COMPOSITE_MIME_TYPES: Record<
+  Exclude<OutputFormat, "webp">,
+  "image/png" | "image/jpeg"
+> = {
+  png: "image/png",
   jpeg: "image/jpeg",
 };
 
@@ -118,7 +125,7 @@ function buildRequestBody(params: {
     output_format: format,
     quality,
   };
-  if (!NO_TRANSPARENCY_MODELS.has(model)) {
+  if (!NO_TRANSPARENT_BACKGROUND_MODELS.has(model)) {
     body.background = background;
   }
   return body;
@@ -159,12 +166,12 @@ function decodeBase64(b64: string): Uint8Array {
 async function overlayLogo(
   imageBytes: Uint8Array,
   logoPath: string,
-  mimeType: string,
+  mimeType: "image/png" | "image/jpeg",
 ): Promise<Uint8Array> {
-  const base = await Jimp.fromBuffer(imageBytes);
+  const base = await Jimp.fromBuffer(Buffer.from(imageBytes));
   const logo = await Jimp.read(logoPath);
   const targetW = Math.round(base.width * 0.12);
-  logo.resize({ width: targetW });
+  logo.resize({ w: targetW });
   const x = base.width - logo.width - 16;
   const y = base.height - logo.height - 16;
   base.composite(logo, x, y);
@@ -174,14 +181,14 @@ async function overlayLogo(
 
 /**
  * Image generator using the OpenAI Images API. Defaults to gpt-image-1.5
- * (the latest model) which supports transparent PNG output, style presets,
- * and flexible sizes. Images are stored in swamp and optionally written to a
- * shared outputDir for composing multi-media mini-sites alongside
- * content-ixen pages — reference the returned filename as a relative path.
+ * (supports transparent PNG output), style presets, and flexible sizes. Images
+ * are stored in swamp and optionally written to a shared outputDir for composing
+ * multi-media mini-sites alongside content-ixen pages — reference the returned
+ * filename as a relative path.
  */
 export const model = {
   type: "@alvagante/content-image",
-  version: "2026.06.23.3",
+  version: "2026.06.24.1",
   globalArguments: z.object({
     apiKey: z.string().optional().meta({ sensitive: true }),
     outputDir: z.string().optional(),
@@ -242,7 +249,7 @@ export const model = {
 
         if (
           args.background === "transparent" &&
-          NO_TRANSPARENCY_MODELS.has(args.model)
+          NO_TRANSPARENT_BACKGROUND_MODELS.has(args.model)
         ) {
           throw new Error(
             `Model '${args.model}' does not support transparent backgrounds. Use gpt-image-1 or gpt-image-1.5.`,
@@ -289,7 +296,7 @@ export const model = {
             imageBytes = await overlayLogo(
               imageBytes,
               branding.logo,
-              MIME_TYPES[args.format],
+              COMPOSITE_MIME_TYPES[args.format],
             );
           }
         }

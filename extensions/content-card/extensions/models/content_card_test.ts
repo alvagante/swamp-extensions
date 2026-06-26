@@ -16,8 +16,9 @@ Deno.test("generate writes card image and metadata", async () => {
       "expected OpenAI Images API URL",
     );
     const body = JSON.parse(String(init?.body));
-    assert(body.model === "gpt-image-1.5", "expected default image model");
+    assert(body.model === "gpt-image-2", "expected default image model");
     assert(body.size === "1024x1536", "expected default card size");
+    assert(body.background === "opaque", "expected background setting");
     assert(
       body.prompt.includes("playing card"),
       "expected playing-card prompt",
@@ -69,7 +70,7 @@ Deno.test("generate writes card image and metadata", async () => {
         cornerIcon: "directed graph node icon",
         logo: "example42 wordmark",
         style: "tarot-technical",
-        model: "gpt-image-1.5",
+        model: "gpt-image-2",
         background: "opaque",
         size: "1024x1536",
         quality: "auto",
@@ -138,7 +139,7 @@ Deno.test("generate rejects card number above card count before API call", async
           cardCount: 4,
           skillLevel: "intermediate",
           style: "vintage-playing-card",
-          model: "gpt-image-1.5",
+          model: "gpt-image-2",
           background: "opaque",
           size: "1024x1536",
           quality: "auto",
@@ -200,7 +201,7 @@ Deno.test("generate rejects OpenAI errors before writing", async () => {
           cardNumber: 1,
           skillLevel: "intermediate",
           style: "vintage-playing-card",
-          model: "gpt-image-1.5",
+          model: "gpt-image-2",
           background: "opaque",
           size: "1024x1536",
           quality: "auto",

@@ -79,6 +79,13 @@ const MIME_TYPES: Record<OutputFormat, string> = {
   webp: "image/webp",
   jpeg: "image/jpeg",
 };
+const COMPOSITE_MIME_TYPES: Record<
+  Exclude<OutputFormat, "webp">,
+  "image/png" | "image/jpeg"
+> = {
+  png: "image/png",
+  jpeg: "image/jpeg",
+};
 
 const STYLE_PREFIXES = IMAGE_STYLE_PREFIXES;
 
@@ -88,7 +95,7 @@ const DEFAULT_SIZE: Record<Orientation, string> = {
   square: "1024x1024",
 };
 
-const NO_TRANSPARENCY_MODELS = new Set(["dall-e-3", "gpt-image-2"]);
+const NO_TRANSPARENT_BACKGROUND_MODELS = new Set(["dall-e-3", "gpt-image-2"]);
 
 function slugify(text: string): string {
   const slug = text
@@ -158,11 +165,8 @@ function buildRequestBody(params: {
     size: params.size,
     output_format: params.format,
     quality: params.quality,
+    background: params.background,
   };
-
-  if (!NO_TRANSPARENCY_MODELS.has(params.model)) {
-    body.background = params.background;
-  }
 
   return body;
 }
@@ -204,12 +208,12 @@ function decodeBase64(b64: string): Uint8Array {
 async function overlayLogo(
   imageBytes: Uint8Array,
   logoPath: string,
-  mimeType: string,
+  mimeType: "image/png" | "image/jpeg",
 ): Promise<Uint8Array> {
-  const base = await Jimp.fromBuffer(imageBytes);
+  const base = await Jimp.fromBuffer(Buffer.from(imageBytes));
   const logo = await Jimp.read(logoPath);
   const targetW = Math.round(base.width * 0.12);
-  logo.resize({ width: targetW });
+  logo.resize({ w: targetW });
   const x = base.width - logo.width - 16;
   const y = base.height - logo.height - 16;
   base.composite(logo, x, y);
@@ -653,7 +657,7 @@ async function writeInfographic(
  */
 export const model = {
   type: "@alvagante/content-infographic",
-  version: "2026.06.23.3",
+  version: "2026.06.24.1",
   globalArguments: z.object({
     apiKey: z.string().optional().meta({ sensitive: true }),
     outputDir: z.string().optional(),
@@ -728,7 +732,7 @@ export const model = {
         }
         if (
           args.background === "transparent" &&
-          NO_TRANSPARENCY_MODELS.has(args.model)
+          NO_TRANSPARENT_BACKGROUND_MODELS.has(args.model)
         ) {
           throw new Error(
             `Model '${args.model}' does not support transparent backgrounds. Use gpt-image-1 or gpt-image-1.5.`,
@@ -785,7 +789,7 @@ export const model = {
             imageBytes = await overlayLogo(
               imageBytes,
               branding.logo,
-              MIME_TYPES[args.format],
+              COMPOSITE_MIME_TYPES[args.format],
             );
             imageB64 = Buffer.from(imageBytes).toString("base64");
           }
@@ -887,7 +891,7 @@ export const model = {
             imageBytes = await overlayLogo(
               imageBytes,
               branding.logo,
-              MIME_TYPES[args.format],
+              COMPOSITE_MIME_TYPES[args.format],
             );
             imageB64 = Buffer.from(imageBytes).toString("base64");
           }

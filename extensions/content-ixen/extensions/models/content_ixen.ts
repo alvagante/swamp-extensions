@@ -346,9 +346,10 @@ Spread images across the page — not all at the top. Each should arrive where
 the narration earns it.
 
 Concept card (portrait playing card; when a card path is supplied for a concept,
-place it as a medium-small right-side card beside the relevant concept,
-immediately after the concept-tools buttons):
-  <figure class="zoom float-right ixen-card-img small"><img src="./concept-1-card.png" alt="Concept name card"><figcaption>…</figcaption></figure>
+emit it immediately after that concept's concept-tools buttons so the page shell
+can bind it to the relevant concept and lift it into the fixed right-side card
+rail):
+  <figure class="zoom ixen-card-img"><img src="./concept-1-card.png" alt="Concept name card"><figcaption>…</figcaption></figure>
 
 NEVER invent a path. If no images are provided, omit image elements entirely.
 
@@ -465,7 +466,7 @@ function buildUserMessage(
         : "   no external image path supplied; omit image elements for this concept";
       const card = cards?.[index];
       const cardLine = card
-        ? `\n   card image: ./${card.path} — place with class="zoom ixen-card-img small float-right" immediately after the concept-tools buttons, right-aligned beside this concept`
+        ? `\n   card image: ./${card.path} — emit as <figure class="zoom ixen-card-img"> immediately after this concept's concept-tools buttons; the page shell moves cards into the fixed right-side card rail`
         : "";
       const detailLine = concept.details
         ? `\n   concept details:\n${concept.details}`
@@ -478,7 +479,7 @@ function buildUserMessage(
       `Concepts to cover, in order:\n${lines.join("\n\n")}\n\n` +
         `For each concept, produce all of these:\n` +
         `- A zoomable image if an image path is supplied. The first concept image should be prominent near the opening; later concept images should sit beside their concept text. Alternate float-left / float-right.\n` +
-        `- A card image if a card path is supplied (use the exact class specified). Place it immediately after the concept-tools buttons, right-aligned beside the relevant concept. Do not invent card paths.\n` +
+        `- A card image if a card path is supplied (use the exact class specified). Emit it immediately after the concept-tools buttons so it remains associated with the relevant concept. Do not float it and do not invent card paths.\n` +
         `- A compact slide popup using class="popup concept-slide". It should feel like one useful technical slide, with a short heading and terse bullets.\n` +
         `- A more verbose explanatory popup using class="popup concept-note". This popup must be informative, direct, and non-Ixen: no first-person narrator, no poetic metaphor, no theatrical voice.\n` +
         `- Short Ixen glue text around it: fragmented, first-person, philosophical, inspiring, technically exact, with zero or more terminal commands and command-output popups where useful.\n` +
@@ -565,26 +566,113 @@ body {
   background: #fff; max-width: 920px; margin: 0 auto;
   padding: 1.5rem 1.5rem 6rem;
 }
-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2.5rem; }
-header h1 {
-  font-size: 3.2rem; font-weight: 900; letter-spacing: -0.04em;
-  margin: 0; line-height: 1.05; text-transform: uppercase;
+header.ixen-title-shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 34%);
+  grid-template-areas:
+    "copy hero"
+    "dock hero";
+  gap: 0.95rem 1.1rem;
+  align-items: stretch;
+  margin: 0 0 2.6rem;
+  padding: 1.05rem 0 1.25rem;
+  border-top: 1px solid #222;
+  border-bottom: 1px solid #ddd;
 }
-header .credits { text-align: right; font-size: 0.75rem; color: var(--red); font-weight: bold; white-space: nowrap; padding-top: 0.4rem; }
-header .credits a { color: var(--red); text-decoration: underline dotted; }
-header .credits .byline { color: var(--dim); font-weight: normal; display: block; margin-top: 0.2rem; }
-.version-menu { margin-top: 0.55rem; font-size: 0.72rem; color: var(--dim); }
-.version-menu label { display: block; margin-bottom: 0.2rem; }
+header.ixen-title-shell:not(.has-hero) {
+  grid-template-columns: 1fr;
+  grid-template-areas:
+    "copy"
+    "dock";
+}
+.ixen-title-copy { grid-area: copy; align-self: start; }
+.ixen-title-meta {
+  display: block;
+  margin: 0 0 0.55rem;
+  color: var(--dim);
+  font-size: 0.75rem;
+}
+header.ixen-title-shell h1 {
+  font-size: clamp(2.55rem, 5vw, 4.05rem);
+  font-weight: 900;
+  letter-spacing: 0;
+  margin: 0;
+  line-height: 0.96;
+  text-transform: uppercase;
+  overflow-wrap: break-word;
+}
+.ixen-title-hero {
+  grid-area: hero;
+  margin: 0;
+  min-height: 15.5rem;
+  border: 1px solid #111;
+  background: #111;
+  overflow: hidden;
+}
+.ixen-title-hero img {
+  width: 100%;
+  height: 100%;
+  min-height: 15.5rem;
+  object-fit: cover;
+  display: block;
+}
+.ixen-title-dock {
+  grid-area: dock;
+  align-self: end;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.5rem;
+}
+.version-menu {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 0.22rem;
+  font-size: 0.72rem;
+  color: var(--dim);
+}
+.version-menu label {
+  font-family: "Courier New", Courier, monospace;
+  font-weight: bold;
+  text-transform: uppercase;
+}
 .version-menu select {
   font-family: "Courier New", Courier, monospace; font-size: 0.72rem;
   max-width: 13rem; color: var(--ink); background: #fff;
-  border: 1px solid #ccc; padding: 0.2rem 0.3rem;
+  border: 1px solid #bbb; padding: 0.37rem 0.45rem;
 }
 .ixen-quick-nav {
-  display: flex; justify-content: flex-end; gap: 0.55rem;
-  margin-top: 0.45rem;
+  display: flex; flex-wrap: wrap; align-items: flex-end; gap: 0.45rem;
 }
-.ixen-quick-nav .cmd { font-size: 0.72rem; }
+.ixen-nav-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2rem;
+  border: 1px solid var(--red);
+  background: #fff;
+  color: var(--red);
+  cursor: pointer;
+  font-family: "Courier New", Courier, monospace;
+  font-size: 0.72rem;
+  font-weight: bold;
+  line-height: 1;
+  letter-spacing: 0.04em;
+  padding: 0.46rem 0.7rem;
+  text-decoration: none;
+  text-transform: uppercase;
+}
+.ixen-nav-btn:hover { background: #fff4f4; }
+.ixen-nav-btn-primary {
+  background: var(--red);
+  color: #fff;
+  padding-inline: 0.9rem;
+}
+.ixen-nav-btn-primary:hover { background: #900; }
+.ixen-nav-btn-secondary { border-color: #111; color: #111; }
+.ixen-nav-btn-secondary:hover { background: #f4f4f4; }
+.ixen-nav-btn-tertiary { border-color: #ccc; color: var(--dim); }
+.ixen-nav-btn-tertiary:hover { color: var(--red); border-color: var(--red); background: #fff; }
 p { margin: 0.45em 0; }
 p strong { color: #000; }
 .binary { font-family: "Courier New", Courier, monospace; letter-spacing: 0.08em; color: var(--ink); }
@@ -678,6 +766,7 @@ figure.ixen-infographic-img img { width: 100%; cursor: zoom-in; display: block; 
 .ixen-infographic-prompt-text { white-space: pre-wrap; font-size: 0.85rem; }
 .ixen-infographic-section h2 button.cmd { font-size: 0.75rem; vertical-align: middle; }
 .concept { clear: both; margin: 2.8rem 0; }
+.ixen-card-target { scroll-margin-top: 2rem; }
 .concept-tools { display: flex; flex-wrap: wrap; gap: 0.55rem; margin: 0.7rem 0 1rem; }
 .concept-btn { font-size: 0.8rem; }
 .concept-slide h2, .concept-note h2 { margin: 0.5rem 0 0.75rem; }
@@ -699,7 +788,7 @@ figure.ixen-infographic-img img { width: 100%; cursor: zoom-in; display: block; 
 .ixen-provenance-footer a { color: var(--dim); text-decoration: underline dotted; }
 .ixen-provenance-meta { margin-top: 0.25rem; }
 .ixen-provenance-meta span + span::before { content: " / "; color: #aaa; }
-.ixen-beginner-bar { margin-top: 0.45rem; }
+.ixen-beginner-bar { display: inline-flex; }
 .beginner-guide h2 { margin: 0.5rem 0 0.75rem; }
 .beginner-guide p { margin: 0.75rem 0; }
 .beginner-guide ul { margin: 0.5rem 0 0.75rem 1.2rem; padding: 0; }
@@ -711,13 +800,89 @@ button.ixen-accent-btn {
 }
 button.ixen-accent-btn:hover { background: #900; }
 figure.zoom.ixen-card-img {
-  float: right !important;
-  width: min(180px, 28%) !important;
-  margin: 0.2rem 0 1rem 1.35rem !important;
-  clear: right;
+  float: none !important;
+  width: min(180px, 100%) !important;
+  margin: 1rem 0 !important;
+  clear: none;
 }
 figure.zoom.ixen-card-img img {
   box-shadow: 2px 4px 14px rgba(0,0,0,0.28); border: 1px solid #ccc; border-radius: 3px;
+}
+.ixen-card-rail {
+  position: fixed;
+  top: 12vh;
+  right: max(1rem, calc((100vw - 920px) / 2 - 205px));
+  width: 170px;
+  height: min(76vh, 620px);
+  z-index: 35;
+  pointer-events: none;
+}
+.ixen-card-rail-track {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  perspective: 900px;
+}
+.ixen-card-rail figure.zoom.ixen-card-img {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  width: 142px !important;
+  margin: 0 !important;
+  opacity: 0;
+  pointer-events: auto;
+  transform-origin: 80% 50%;
+  transition:
+    transform 360ms cubic-bezier(.2,.9,.2,1),
+    opacity 240ms ease,
+    filter 240ms ease;
+  will-change: transform, opacity;
+  filter: grayscale(0.25) saturate(0.9);
+}
+.ixen-card-rail figure.zoom.ixen-card-img.is-visible { opacity: 0.52; }
+.ixen-card-rail figure.zoom.ixen-card-img.is-near { opacity: 0.78; filter: grayscale(0.1) saturate(1); }
+.ixen-card-rail figure.zoom.ixen-card-img.is-active {
+  opacity: 1;
+  filter: none;
+}
+.ixen-card-rail figure.zoom.ixen-card-img img {
+  transition: box-shadow 240ms ease, transform 240ms ease;
+}
+.ixen-card-rail figure.zoom.ixen-card-img.is-active img {
+  box-shadow: 4px 10px 28px rgba(0,0,0,0.36);
+}
+.ixen-card-rail figcaption { display: none; }
+.ixen-card-rail-caption {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 142px;
+  background: none;
+  border: none;
+  color: var(--red);
+  cursor: pointer;
+  font-family: "Courier New", Courier, monospace;
+  font-size: 0.72rem;
+  font-weight: bold;
+  line-height: 1.25;
+  padding: 0;
+  text-align: right;
+  text-decoration: underline dotted;
+  text-shadow: 0 1px 0 #fff, 0 0 8px #fff;
+  pointer-events: auto;
+}
+.ixen-card-rail-hint {
+  position: absolute;
+  top: calc(50% - 155px);
+  right: 0;
+  width: 142px;
+  font-family: "Courier New", Courier, monospace;
+  font-size: 0.64rem;
+  color: var(--dim);
+  text-align: right;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  pointer-events: none;
 }
 .ixen-card-deck-grid {
   display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
@@ -740,10 +905,76 @@ figure.zoom.ixen-card-img img {
   display: block; width: auto; height: auto;
   max-width: min(360px, 42vw); max-height: 82vh;
 }
+@media (max-width: 1359px) {
+  .ixen-card-rail {
+    top: 6.5rem;
+    right: 0.55rem;
+    width: 96px;
+    height: min(68vh, 520px);
+  }
+  .ixen-card-rail figure.zoom.ixen-card-img { width: 78px !important; }
+  .ixen-card-rail-caption {
+    width: 92px;
+    font-size: 0.62rem;
+  }
+  .ixen-card-rail-hint { display: none; }
+}
 @media (max-width: 720px) {
-  figure.zoom.ixen-card-img {
-    width: min(150px, 42%) !important;
-    margin-left: 1rem !important;
+  header.ixen-title-shell,
+  header.ixen-title-shell.has-hero {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "hero"
+      "copy"
+      "dock";
+  }
+  .ixen-title-hero,
+  .ixen-title-hero img {
+    min-height: 0;
+    aspect-ratio: 16 / 9;
+  }
+  header.ixen-title-shell h1 {
+    font-size: 2.55rem;
+  }
+  .ixen-title-dock,
+  .ixen-quick-nav {
+    width: 100%;
+  }
+  .ixen-nav-btn {
+    flex: 1 1 auto;
+  }
+  .ixen-card-rail {
+    top: auto;
+    right: 0;
+    bottom: 3.75rem;
+    left: 0;
+    width: auto;
+    height: 104px;
+    overflow: hidden;
+  }
+  .ixen-card-rail-track {
+    display: flex;
+    justify-content: flex-end;
+    align-items: flex-end;
+    gap: 0.35rem;
+    padding: 0 0.6rem;
+  }
+  .ixen-card-rail figure.zoom.ixen-card-img {
+    position: static;
+    width: 58px !important;
+    transform: none !important;
+    opacity: 0.7;
+  }
+  .ixen-card-rail figure.zoom.ixen-card-img.is-active {
+    opacity: 1;
+    transform: translateY(-0.4rem) scale(1.12) !important;
+  }
+  .ixen-card-rail-caption {
+    left: 0.65rem;
+    right: auto;
+    bottom: 0.25rem;
+    width: min(52vw, 14rem);
+    text-align: left;
   }
   .ixen-card-hover {
     left: 50%; right: auto; transform: translate(-50%, -50%);
@@ -798,6 +1029,15 @@ const MUSIC_PLAYER_CSS = `
   padding: 0.15rem 0.3rem; line-height: 1; flex-shrink: 0;
 }
 .ixen-pbtn:hover { color: #c00; }
+#ixen-player.ixen-autoplay-blocked #ixen-play-btn {
+  color: #fff; background: #c00; border-radius: 2px;
+  box-shadow: 0 0 0 1px #c00, 0 0 18px rgba(204,0,0,0.55);
+  animation: ixen-play-pulse 1.35s ease-in-out infinite;
+}
+@keyframes ixen-play-pulse {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 0 1px #c00, 0 0 12px rgba(204,0,0,0.35); }
+  50% { transform: scale(1.14); box-shadow: 0 0 0 1px #f33, 0 0 24px rgba(204,0,0,0.8); }
+}
 #ixen-ptitle {
   flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   color: #c00; font-weight: bold; letter-spacing: 0.02em;
@@ -885,6 +1125,90 @@ const PAGE_JS = `
   buildConceptIndexPopup("concept-slide", "ixen-all-slides", "All slides");
   buildConceptIndexPopup("concept-note", "ixen-all-notes", "All notes");
 
+  function initCardRail() {
+    var cards = Array.prototype.slice.call(document.querySelectorAll("main figure.ixen-card-img"));
+    if (!cards.length || document.querySelector(".ixen-card-rail")) return;
+
+    var rail = document.createElement("aside");
+    rail.className = "ixen-card-rail";
+    rail.setAttribute("aria-label", "Concept cards");
+    rail.innerHTML = '<div class="ixen-card-rail-hint">concept deck</div><div class="ixen-card-rail-track"></div><button type="button" class="ixen-card-rail-caption"></button>';
+    var track = rail.querySelector(".ixen-card-rail-track");
+    var activeCaption = rail.querySelector(".ixen-card-rail-caption");
+    var items = [];
+
+    cards.forEach(function (card, index) {
+      var section = card.closest("section.chapter, section.concept, section") || card.parentElement;
+      if (!section) return;
+      if (!section.id) section.id = "ixen-concept-card-" + (index + 1);
+      section.classList.add("ixen-card-target");
+
+      card.classList.remove("float-left", "float-right", "small", "large");
+      card.classList.add("ixen-card-rail-item");
+      card.setAttribute("data-concept-target", section.id);
+
+      var img = card.querySelector("img");
+      var fallback = img && img.alt ? img.alt.replace(/\s+card$/i, "") : "Concept " + (index + 1);
+      var caption = card.querySelector("figcaption") || document.createElement("figcaption");
+      var captionText = (caption.textContent || fallback).trim();
+      card.setAttribute("data-card-caption", captionText || fallback);
+      if (!caption.parentElement) card.appendChild(caption);
+
+      track.appendChild(card);
+      items.push({ card: card, section: section });
+    });
+
+    if (!items.length) return;
+    document.body.appendChild(rail);
+
+    function setActive(activeIndex) {
+      items.forEach(function (item, index) {
+        var distance = index - activeIndex;
+        var abs = Math.abs(distance);
+        var clamped = Math.max(-3, Math.min(3, distance));
+        var scale = Math.max(0.72, 1.05 - abs * 0.08);
+        var x = Math.min(42, abs * 14);
+        var y = clamped * 54;
+        var tilt = distance === 0 ? 0 : (distance < 0 ? -7 : 7);
+
+        item.card.classList.toggle("is-active", index === activeIndex);
+        item.card.classList.toggle("is-near", abs === 1);
+        item.card.classList.toggle("is-visible", abs <= 3);
+        item.card.style.zIndex = String(100 - abs);
+        item.card.style.transform = "translateY(calc(-50% + " + y + "px)) translateX(" + x + "px) scale(" + scale + ") rotate(" + tilt + "deg)";
+      });
+      var active = items[activeIndex];
+      if (active && activeCaption) {
+        var activeText = active.card.getAttribute("data-card-caption") || "";
+        activeCaption.textContent = activeText;
+        activeCaption.setAttribute("data-concept-target", active.section.id);
+        activeCaption.title = "Jump to " + activeText;
+      }
+    }
+
+    function chooseActive() {
+      var center = window.innerHeight * 0.46;
+      var bestIndex = 0;
+      var bestDistance = Infinity;
+      items.forEach(function (item, index) {
+        var rect = item.section.getBoundingClientRect();
+        var sectionCenter = rect.top + rect.height * 0.35;
+        var distance = Math.abs(sectionCenter - center);
+        if (distance < bestDistance) {
+          bestDistance = distance;
+          bestIndex = index;
+        }
+      });
+      setActive(bestIndex);
+    }
+
+    chooseActive();
+    window.addEventListener("scroll", chooseActive, { passive: true });
+    window.addEventListener("resize", chooseActive);
+  }
+
+  initCardRail();
+
   function openPopup(popupId) {
     var popup = document.getElementById(popupId);
     if (!popup) return;
@@ -907,7 +1231,7 @@ const PAGE_JS = `
 
   function cardPreviewImage(target) {
     return target && target.closest
-      ? target.closest("figure.ixen-card-img img, .ixen-card-deck-grid figure.zoom img")
+      ? target.closest(".ixen-card-deck-grid figure.zoom img")
       : null;
   }
 
@@ -936,6 +1260,15 @@ const PAGE_JS = `
     var trigger = e.target.closest ? e.target.closest(".popup-trigger") : null;
     if (trigger) {
       openPopup(trigger.getAttribute("data-popup"));
+      return;
+    }
+
+    var jump = e.target.closest ? e.target.closest(".ixen-card-rail-caption") : null;
+    var railCard = e.target.closest ? e.target.closest("figure.ixen-card-rail-item") : null;
+    if (jump || (railCard && !e.target.closest("img"))) {
+      var targetId = (jump || railCard).getAttribute("data-concept-target");
+      var target = targetId ? document.getElementById(targetId) : null;
+      if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
       return;
     }
 
@@ -1006,6 +1339,7 @@ var lyrTxt=document.getElementById('ixen-lyrics-text');
 var trkBtn=document.getElementById('ixen-tracks-btn');
 var trkPanel=document.getElementById('ixen-tracklist-panel');
 var overlay=document.getElementById('ixen-autoplay-overlay');
+var player=document.getElementById('ixen-player');
 var idx=0,playing=false;
 
 function fmt(s){
@@ -1029,13 +1363,20 @@ function loadIdx(i,autoplay){
   if(autoplay)doPlay();
 }
 
+function setAutoplayBlocked(blocked){
+  if(overlay)overlay.style.display='none';
+  if(player)player.classList.toggle('ixen-autoplay-blocked',blocked);
+  playBtn.title=blocked?'Play soundtrack':'Play / Pause';
+}
+
 function doPlay(){
+  setAutoplayBlocked(false);
   au.play().then(function(){
     playing=true;playBtn.textContent='⏸';
-    if(overlay)overlay.style.display='none';
+    setAutoplayBlocked(false);
   }).catch(function(){
     playing=false;playBtn.textContent='▶';
-    if(overlay)overlay.style.display='flex';
+    setAutoplayBlocked(true);
   });
 }
 
@@ -1091,7 +1432,7 @@ if(T.length>1){
   if(trkBtn)trkBtn.hidden=true;
 }
 
-document.getElementById('ixen-player').style.display='block';
+player.style.display='block';
 document.body.style.paddingBottom='4.5rem';
 loadIdx(0,false);
 doPlay();
@@ -1177,6 +1518,42 @@ function referencedOutputFiles(html: string): string[] {
   return [...files];
 }
 
+function rebaseVersionedTrackPaths(html: string): string {
+  return html.replace(
+    /(<script type="application\/json" id="ixen-tracks-data">)([\s\S]*?)(<\/script>)/,
+    (_match, open: string, rawJson: string, close: string) => {
+      let tracks: Array<{ filename?: string }>;
+      try {
+        tracks = JSON.parse(rawJson.replace(/<\\\/script>/gi, "</script>"));
+      } catch {
+        return _match;
+      }
+      if (!Array.isArray(tracks)) return _match;
+
+      const rebased = tracks.map((track) => {
+        const filename = track.filename;
+        if (
+          typeof filename === "string" &&
+          !filename.startsWith("/") &&
+          !filename.startsWith("./") &&
+          !filename.startsWith("../") &&
+          !/^[a-z][a-z0-9+.-]*:/i.test(filename) &&
+          filename.includes("/")
+        ) {
+          return { ...track, filename: `../${filename}` };
+        }
+        return track;
+      });
+
+      const safeJson = JSON.stringify(rebased).replace(
+        /<\/script>/gi,
+        "<\\/script>",
+      );
+      return `${open}${safeJson}${close}`;
+    },
+  );
+}
+
 async function rotateExistingIxen(
   outputDir: string,
 ): Promise<{ rotatedVersion?: number; versions: number[] }> {
@@ -1202,6 +1579,10 @@ async function rotateExistingIxen(
     if (!await pathExists(sourcePath)) continue;
     await Deno.rename(sourcePath, `${targetDir}/${file}`);
   }
+  await Deno.writeTextFile(
+    `${targetDir}/index.html`,
+    rebaseVersionedTrackPaths(html),
+  );
 
   return {
     rotatedVersion,
@@ -1216,7 +1597,7 @@ function renderVersionMenu(versions: number[]): string {
     .join("");
   return `
     <div class="version-menu">
-      <label for="ixen-version-select">versions</label>
+      <label for="ixen-version-select">previous versions</label>
       <select id="ixen-version-select">
         <option value="current">Current</option>
         ${options}
@@ -1266,7 +1647,7 @@ function renderByline(
   const text = credit?.trim()
     ? `By ${escapeHtml(credit.trim())} — ${timestamp}`
     : timestamp;
-  return `<span class="byline">${text}</span>`;
+  return `<span class="ixen-title-meta">${text}</span>`;
 }
 
 function renderPersonaLabel(page: IxenPage): string | undefined {
@@ -1315,23 +1696,27 @@ function renderQuickNav(
   const items: string[] = [];
   if (hasCards) {
     items.push(
-      '<button class="ixen-accent-btn popup-trigger" data-popup="ixen-card-deck">Card Deck</button>',
+      '<button class="ixen-nav-btn ixen-nav-btn-primary popup-trigger" data-popup="ixen-card-deck">Card Deck</button>',
     );
   }
   if (hasCheatsheet) {
-    items.push('<a class="cmd" href="#ixen-cheatsheet">Cheatsheet</a>');
+    items.push(
+      '<a class="ixen-nav-btn ixen-nav-btn-secondary" href="#ixen-cheatsheet">Cheatsheet</a>',
+    );
   }
   if (hasInfographic) {
-    items.push('<a class="cmd" href="#ixen-infographic">Infographic</a>');
+    items.push(
+      '<a class="ixen-nav-btn ixen-nav-btn-secondary" href="#ixen-infographic">Infographic</a>',
+    );
   }
   if (hasPopupClass(content, "concept-slide")) {
     items.push(
-      '<button class="cmd popup-trigger" data-popup="ixen-all-slides">Slides</button>',
+      '<button class="ixen-nav-btn ixen-nav-btn-tertiary popup-trigger" data-popup="ixen-all-slides">Slides</button>',
     );
   }
   if (hasPopupClass(content, "concept-note")) {
     items.push(
-      '<button class="cmd popup-trigger" data-popup="ixen-all-notes">Notes</button>',
+      '<button class="ixen-nav-btn ixen-nav-btn-tertiary popup-trigger" data-popup="ixen-all-notes">Notes</button>',
     );
   }
   if (items.length === 0) return "";
@@ -1339,6 +1724,18 @@ function renderQuickNav(
     <div class="ixen-quick-nav">
       ${items.join("\n      ")}
     </div>`;
+}
+
+function relativeAssetPath(path: string): string {
+  return /^(?:[a-z]+:|\/|\.\/|\.\.\/)/i.test(path) ? path : `./${path}`;
+}
+
+function resolveTitleHeroPath(page: IxenPage): string | undefined {
+  const candidates = [
+    page.media,
+    ...(page.mediaItems ?? []).map((item) => item.path),
+  ].filter((path): path is string => Boolean(path));
+  return candidates.find(isImagePath);
 }
 
 function resolveInfographics(
@@ -1456,10 +1853,16 @@ function renderPage(
   );
   const cardDeckPopup = renderCardDeckPopup(cards);
   const beginnerBar = page.beginnerGuideContent
-    ? `\n    <div class="ixen-beginner-bar"><button class="ixen-accent-btn popup-trigger" data-popup="ixen-beginner-guide">Beginner's intro</button></div>`
+    ? `\n    <div class="ixen-beginner-bar"><button class="ixen-nav-btn ixen-nav-btn-primary popup-trigger" data-popup="ixen-beginner-guide">Beginner's intro</button></div>`
     : "";
   const beginnerPopup = page.beginnerGuideContent
     ? `\n<aside class="popup beginner-guide" id="ixen-beginner-guide" hidden>\n  <div class="popup-bar"><button class="popup-close">Close Window</button></div>\n  <h2>Beginner's intro</h2>\n  ${page.beginnerGuideContent.trim()}\n</aside>`
+    : "";
+  const titleHeroPath = resolveTitleHeroPath(page);
+  const titleHero = titleHeroPath
+    ? `\n  <figure class="ixen-title-hero"><img src="${
+      escapeHtml(relativeAssetPath(titleHeroPath))
+    }" alt="${title}"></figure>`
     : "";
   const headerContent = page.headerContent?.trim()
     ? `\n<section class="ixen-extra-header">\n${page.headerContent.trim()}\n</section>`
@@ -1488,9 +1891,12 @@ function renderPage(
 <body>
 <!-- @alvagante/content-ixen -->
 ${headerContent}
-<header>
-  <h1>${title}</h1>
-  <div class="credits">${byline}${versionMenu}${quickNav}${beginnerBar}</div>
+<header class="ixen-title-shell${titleHero ? " has-hero" : ""}">
+  <div class="ixen-title-copy">
+    ${byline}
+    <h1>${title}</h1>
+  </div>${titleHero}
+  <div class="ixen-title-dock">${versionMenu}${quickNav}${beginnerBar}</div>
 </header>
 <main>
 ${page.content}
@@ -1588,7 +1994,7 @@ async function storePage(
  */
 export const model = {
   type: "@alvagante/content-ixen",
-  version: "2026.06.23.2",
+  version: "2026.06.24.3",
   upgrades: [
     {
       toVersion: "2026.06.15.1",
@@ -1666,6 +2072,30 @@ export const model = {
       toVersion: "2026.06.23.1",
       description:
         "Consolidate LLM utilities, image-schema types, and style prefix maps into shared/content_shared.ts; add branding globalArg (logo footer) and provenance persona/style metadata; no required resource schema changes.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.23.3",
+      description:
+        "Move concept cards into a fixed right-side scroll-synced card rail instead of inline floats; cards remain zoomable and link back to their concept sections.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.24.1",
+      description:
+        "Hide per-card captions in the shuffling concept rail and show only the active card caption below the stack.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.24.2",
+      description:
+        "Replace the intrusive full-page autoplay-blocked overlay with a non-blocking highlighted play button in the fixed bottom music player.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.24.3",
+      description:
+        "Redesign the Ixen title section around caller-supplied hero media and weighted resource buttons for versions, cards, cheatsheets, infographics, slides, notes, and beginner intro.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

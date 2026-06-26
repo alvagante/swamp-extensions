@@ -14,3 +14,8 @@
 # END swamp managed section
 
 .DS_Store
+
+
+.kiro/settings/mcp.json
+.kirograph
+

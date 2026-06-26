@@ -56,13 +56,25 @@ Arguments:
 | `cornerIcon` | No       | Bottom-left icon description | Topic-derived icon |
 | `logo`       | No       | Bottom-right logo/mark description | Blank corner |
 | `style`      | No       | See style presets below | `vintage-playing-card` |
-| `model`      | No       | OpenAI image model | `gpt-image-1.5` |
+| `model`      | No       | OpenAI image model | `gpt-image-2` |
 | `background` | No       | `opaque`, `transparent`, `auto` | `opaque` |
 | `size`       | No       | OpenAI image size | `1024x1536` |
 | `quality`    | No       | `auto`, `low`, `medium`, `high` | `auto` |
 | `format`     | No       | `png`, `webp`, `jpeg` | `png` |
 | `filename`   | No       | Generated image filename | Slug + timestamp |
 | `outputDir`  | No       | Override global output directory | - |
+
+Common `size` values:
+
+| Size | Use |
+| ---- | --- |
+| `1024x1536` | Default portrait card |
+| `1536x1024` | Landscape card/poster variant |
+| `1024x1024` | Square card tile |
+| `2048x2048` | 2K square |
+| `2160x3840` | 4K portrait |
+| `3840x2160` | 4K landscape |
+| `auto` | Let the model choose |
 
 ## Skill Map
 

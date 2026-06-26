@@ -59,6 +59,19 @@ Arguments:
 | `htmlFilename` | No       | Generated HTML filename                          | `{title}-infographic.html` |
 | `outputDir`    | No       | Override global output directory                 | -                          |
 
+Common `size` values:
+
+| Size | Use |
+| ---- | --- |
+| `1536x1024` | Default `wide` orientation |
+| `1024x1536` | Default `portrait` orientation |
+| `1024x1024` | Default `square` orientation |
+| `2048x1152` | 2K wide |
+| `2048x2048` | 2K square |
+| `3840x2160` | 4K wide |
+| `2160x3840` | 4K portrait |
+| `auto` | Let the model choose |
+
 ### `save`
 
 Store an externally generated image without calling OpenAI:

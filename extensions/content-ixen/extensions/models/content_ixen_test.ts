@@ -40,10 +40,15 @@ Deno.test("save rotates previous Ixen output and renders version menu", async ()
       credits: "Custom credits",
       outputDir,
       versionOutput: true,
+      musicTracks: [
+        { title: "Historical track", filename: "1/historical.mp3" },
+        { title: "Current track", filename: "current.mp3" },
+      ],
     },
     context,
   );
   await Deno.writeFile(`${outputDir}/old.png`, new Uint8Array([1, 2, 3]));
+  await Deno.writeFile(`${outputDir}/current.mp3`, new Uint8Array([4, 5, 6]));
 
   await save(
     {
@@ -87,6 +92,7 @@ Deno.test("save rotates previous Ixen output and renders version menu", async ()
   const current = await Deno.readTextFile(`${outputDir}/index.html`);
   const previous = await Deno.readTextFile(`${outputDir}/1/index.html`);
   const oldImage = await Deno.stat(`${outputDir}/1/old.png`);
+  const currentTrack = await Deno.stat(`${outputDir}/1/current.mp3`);
 
   assert(writes.length === 2, "expected both HTML writes to be recorded");
   assert(resources.length === 2, "expected both page resources to be recorded");
@@ -116,7 +122,7 @@ Deno.test("save rotates previous Ixen output and renders version menu", async ()
     "expected persona and style provenance metadata",
   );
   assert(
-    current.includes('<span class="byline">By Custom credits — 20'),
+    current.includes('<span class="ixen-title-meta">By Custom credits — 20'),
     "expected custom credits and timestamp in byline",
   );
   assert(
@@ -162,7 +168,8 @@ Deno.test("save rotates previous Ixen output and renders version menu", async ()
     "expected inline infographic iframe",
   );
   assert(
-    current.indexOf("custom header") < current.indexOf("<header>"),
+    current.indexOf("custom header") <
+      current.indexOf('<header class="ixen-title-shell">'),
     "expected custom header before built-in Ixen title header",
   );
   assert(
@@ -176,6 +183,15 @@ Deno.test("save rotates previous Ixen output and renders version menu", async ()
   assert(current.includes("ixen-version-select"), "expected version selector");
   assert(previous.includes("first"), "expected previous page to rotate");
   assert(oldImage.size === 3, "expected referenced media to rotate");
+  assert(currentTrack.size === 3, "expected root-local music to rotate");
+  assert(
+    previous.includes('"filename":"../1/historical.mp3"'),
+    "expected historical track paths to be rebased after rotation",
+  );
+  assert(
+    previous.includes('"filename":"current.mp3"'),
+    "expected rotated local tracks to stay local",
+  );
 });
 
 Deno.test("generate rejects truncated provider output before writing", async () => {

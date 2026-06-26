@@ -80,7 +80,7 @@ const MIME_TYPES: Record<OutputFormat, string> = {
   jpeg: "image/jpeg",
 };
 
-const NO_TRANSPARENCY_MODELS = new Set(["dall-e-3", "gpt-image-2"]);
+const NO_TRANSPARENT_BACKGROUND_MODELS = new Set(["dall-e-3", "gpt-image-2"]);
 const MAX_API_ATTEMPTS = 3;
 
 const STYLE_PREFIXES = CARD_STYLE_PREFIXES;
@@ -158,7 +158,7 @@ function buildRequestBody(params: {
     output_format: params.format,
     quality: params.quality,
   };
-  if (!NO_TRANSPARENCY_MODELS.has(params.model)) {
+  if (!NO_TRANSPARENT_BACKGROUND_MODELS.has(params.model)) {
     body.background = params.background;
   }
   return body;
@@ -268,7 +268,7 @@ async function writeCard(
  */
 export const model = {
   type: "@alvagante/content-card",
-  version: "2026.06.23.2",
+  version: "2026.06.24.1",
   globalArguments: z.object({
     apiKey: z.string().optional().meta({ sensitive: true }),
     outputDir: z.string().optional(),
@@ -344,7 +344,7 @@ export const model = {
         }
         if (
           args.background === "transparent" &&
-          NO_TRANSPARENCY_MODELS.has(args.model)
+          NO_TRANSPARENT_BACKGROUND_MODELS.has(args.model)
         ) {
           throw new Error(
             `Model '${args.model}' does not support transparent backgrounds. Use gpt-image-1 or gpt-image-1.5.`,
