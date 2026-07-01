@@ -1,0 +1,11 @@
+type: "@alvagante/content-iam"
+typeVersion: 2026.06.26.1
+id: 07f3835c-710c-4e78-ae46-b5f20ac6f673
+name: my-iam
+version: 1
+tags: {}
+globalArguments:
+  apiFormat: anthropic
+  apiKey: "${{ vault.get(anthropic-keys, api-key) }}"
+  baseUrl: "https://api.anthropic.com"
+methods: {}

@@ -260,15 +260,20 @@ async function callMusicApi(
   let body: Record<string, unknown>;
 
   if (params.model === "suno-ttapi") {
+    const isCustom = !params.instrumental && !!params.lyrics;
     body = {
       type: "MUSIC_GENERATOR",
       model: "suno-ttapi",
       promptObject: {
         mv: params.sunoVersion,
-        custom: !params.instrumental && !!params.lyrics,
-        prompt: params.lyrics ?? "",
+        custom: isCustom,
+        ...(isCustom
+          ? { prompt: params.lyrics ?? "", tags: params.tags ?? "" }
+          : {
+            gpt_description_prompt: params.musicDescription ??
+              `${params.tags ?? ""} ${params.title ?? ""}`.trim(),
+          }),
         title: params.title ?? "",
-        tags: params.tags ?? "",
         instrumental: params.instrumental,
       },
     };

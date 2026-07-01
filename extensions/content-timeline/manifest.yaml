@@ -1,0 +1,23 @@
+manifestVersion: 1
+name: "@alvagante/content-timeline"
+version: "2026.06.30.1"
+description: "Generate self-contained HTML timelines for any subject — biographical, historical, project, technology, or custom. Events are grouped into named phases; all content must be factually documented (no invented dates or events). Uses Claude or any OpenAI-compatible endpoint, or stores caller-written content via the save method."
+repository: "https://github.com/alvagante/swamp-extensions"
+paths:
+  base: manifest
+models:
+  - extensions/models/content_timeline.ts
+additionalFiles:
+  - README.md
+  - LICENSE.txt
+platforms:
+  - linux-x86_64
+  - darwin-aarch64
+labels:
+  - content
+  - html
+  - timeline
+  - biography
+  - history
+  - ai
+  - anthropic

@@ -1,1 +1,17 @@
-{}
+{
+  "@alvagante/content-iam": {
+    "version": "2026.06.26.3",
+    "pulledAt": "2026-06-26T14:49:16.922Z",
+    "files": [
+      ".swamp/pulled-extensions/@alvagante/content-iam/models/extensions/models/content_iam.ts",
+      ".swamp/pulled-extensions/@alvagante/content-iam/models/extensions/models/content_shared.ts",
+      ".swamp/bundles/8f67143e/extensions/models/content_iam.js",
+      ".swamp/pulled-extensions/@alvagante/content-iam/files/README.md",
+      ".swamp/pulled-extensions/@alvagante/content-iam/files/LICENSE.txt",
+      ".swamp/pulled-extensions/@alvagante/content-iam/manifest.yaml"
+    ],
+    "checksum": "bb460f5681ebde8327660116f20c22d6faf05e31934ba6444256f65dc7e49284",
+    "filesChecksum": "2e3002d06c85331823e0d42c56d3563c6e71254bdb60fefab98e31cb74c76419",
+    "serverUrl": "https://swamp-club.com"
+  }
+}

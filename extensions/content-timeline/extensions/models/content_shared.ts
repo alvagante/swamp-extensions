@@ -58,7 +58,12 @@ export const PERSONA_DIRECTIVES: Record<Persona, string> = {
 
 // ─── Skill Level ─────────────────────────────────────────────────────────────
 
-export const SkillLevelSchema = z.enum(["novice", "intermediate", "senior", "guru"]);
+export const SkillLevelSchema = z.enum([
+  "novice",
+  "intermediate",
+  "senior",
+  "guru",
+]);
 export type SkillLevel = z.infer<typeof SkillLevelSchema>;
 
 // ─── Image Style Presets ─────────────────────────────────────────────────────
@@ -298,8 +303,8 @@ export const CARD_STYLE_PREFIXES: Record<CardStyle, string> = {
 };
 
 export const BrandingSchema = z.object({
-  logo: z.string().optional(),  // path or URL to logo image
-  name: z.string().optional(),  // brand / site name
-  link: z.string().optional(),  // URL to link to
+  logo: z.string().optional(), // path or URL to logo image
+  name: z.string().optional(), // brand / site name
+  link: z.string().optional(), // URL to link to
 });
 export type Branding = z.infer<typeof BrandingSchema>;
