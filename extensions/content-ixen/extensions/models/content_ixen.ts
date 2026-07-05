@@ -175,7 +175,7 @@ const SKILL_LEVEL_DIRECTIVES: Record<string, string> = {
 const MAX_TOKENS: Record<string, number> = {
   short: 4000,
   medium: 8000,
-  long: 16000,
+  long: 24000,
 };
 
 function isTruncatedStopReason(stopReason: string): boolean {
@@ -1994,7 +1994,7 @@ async function storePage(
  */
 export const model = {
   type: "@alvagante/content-ixen",
-  version: "2026.06.24.3",
+  version: "2026.07.05.1",
   upgrades: [
     {
       toVersion: "2026.06.15.1",
@@ -2096,6 +2096,12 @@ export const model = {
       toVersion: "2026.06.24.3",
       description:
         "Redesign the Ixen title section around caller-supplied hero media and weighted resource buttons for versions, cards, cheatsheets, infographics, slides, notes, and beginner intro.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.07.05.1",
+      description:
+        "Raise the long outputLength max_tokens from 16000 to 24000 so dense 8-concept pages complete without truncation; no globalArguments schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
