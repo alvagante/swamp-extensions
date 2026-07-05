@@ -1,8 +1,104 @@
+import UPNG from "npm:upng-js@2.1.0";
 import { model } from "./content_infographic.ts";
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
 }
+
+function solidPng(width: number, height: number, rgba: number[]): Uint8Array {
+  const pixels = new Uint8Array(width * height * 4);
+  for (let i = 0; i < pixels.length; i += 4) pixels.set(rgba, i);
+  return new Uint8Array(
+    UPNG.encode([pixels.buffer as ArrayBuffer], width, height, 0),
+  );
+}
+
+function toBase64(bytes: Uint8Array): string {
+  return btoa(String.fromCharCode(...bytes));
+}
+
+Deno.test("generate composites branding logo onto PNG output", async () => {
+  const originalFetch = globalThis.fetch;
+  const outputDir = await Deno.makeTempDir({ prefix: "content-infographic-" });
+  const basePng = solidPng(64, 64, [255, 0, 0, 255]);
+  const logoPath = `${outputDir}/logo.png`;
+  await Deno.writeFile(logoPath, solidPng(16, 16, [0, 0, 255, 255]));
+
+  globalThis.fetch = (() =>
+    Promise.resolve({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          data: [{ b64_json: toBase64(basePng) }],
+        }),
+    } as Response)) as typeof fetch;
+
+  const context = {
+    globalArgs: {
+      apiKey: "test-key",
+      branding: {
+        logo: logoPath,
+        name: "test",
+        link: "https://example.com",
+      },
+    },
+    writeResource: () => Promise.resolve({}),
+    createFileWriter: () => ({
+      writeText: () => Promise.resolve({}),
+      writeAll: () => Promise.resolve({}),
+    }),
+    logger: {
+      info: () => {},
+      error: () => {},
+    },
+  };
+
+  try {
+    await model.methods.generate.execute(
+      {
+        topic: "Test topic",
+        title: "Test Infographic",
+        keyPoints: [],
+        style: "technical-diagram",
+        orientation: "wide",
+        model: "gpt-image-2",
+        background: "opaque",
+        quality: "auto",
+        format: "png",
+        filename: "branded.png",
+        htmlFilename: "branded-infographic.html",
+        outputDir,
+      },
+      context,
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+
+  const written = await Deno.readFile(`${outputDir}/branded.png`);
+  const decoded = UPNG.decode(
+    written.buffer.slice(
+      written.byteOffset,
+      written.byteOffset + written.byteLength,
+    ) as ArrayBuffer,
+  );
+  assert(
+    decoded.width === 64 && decoded.height === 64,
+    "expected 64x64 output",
+  );
+  const rgba = new Uint8Array(UPNG.toRGBA8(decoded)[0]);
+  // Logo target width: round(64 * 0.12) = 8, placed at (64-8-16, 64-8-16) = (40, 40).
+  const logoPixel = (43 * 64 + 43) * 4;
+  assert(
+    rgba[logoPixel] === 0 && rgba[logoPixel + 2] === 255,
+    "expected blue logo pixel in overlay region",
+  );
+  const basePixel = (8 * 64 + 8) * 4;
+  assert(
+    rgba[basePixel] === 255 && rgba[basePixel + 2] === 0,
+    "expected untouched red base pixel outside overlay",
+  );
+});
 
 Deno.test("generate writes infographic image, HTML, and metadata", async () => {
   const originalFetch = globalThis.fetch;

@@ -1,6 +1,7 @@
 import { Buffer } from "node:buffer";
 import { z } from "npm:zod@4";
-import { Jimp } from "npm:jimp@1.6.1";
+import UPNG from "npm:upng-js@2.1.0";
+import * as jpeg from "npm:jpeg-js@0.4.4";
 import {
   type Background,
   BackgroundSchema,
@@ -205,20 +206,131 @@ function decodeBase64(b64: string): Uint8Array {
   return Uint8Array.from(atob(b64), (char) => char.charCodeAt(0));
 }
 
+// Logo overlay uses pure-JS codecs (upng-js ships its own inflate, jpeg-js is
+// plain typed arrays): Jimp's pngjs codec relies on Node zlib internals
+// (Inflate._processChunk) that break under swamp's Deno runtime.
+type RgbaImage = { width: number; height: number; rgba: Uint8Array };
+
+function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
+  return bytes.buffer.slice(
+    bytes.byteOffset,
+    bytes.byteOffset + bytes.byteLength,
+  ) as ArrayBuffer;
+}
+
+function isPng(bytes: Uint8Array): boolean {
+  return bytes.length > 4 && bytes[0] === 0x89 && bytes[1] === 0x50 &&
+    bytes[2] === 0x4e && bytes[3] === 0x47;
+}
+
+function decodeRgba(bytes: Uint8Array): RgbaImage {
+  if (isPng(bytes)) {
+    const img = UPNG.decode(toArrayBuffer(bytes));
+    return {
+      width: img.width,
+      height: img.height,
+      rgba: new Uint8Array(UPNG.toRGBA8(img)[0]),
+    };
+  }
+  const img = jpeg.decode(bytes, { useTArray: true });
+  return { width: img.width, height: img.height, rgba: img.data };
+}
+
+function encodeRgba(
+  img: RgbaImage,
+  mimeType: "image/png" | "image/jpeg",
+): Uint8Array {
+  if (mimeType === "image/png") {
+    return new Uint8Array(
+      UPNG.encode([toArrayBuffer(img.rgba)], img.width, img.height, 0),
+    );
+  }
+  return new Uint8Array(
+    jpeg.encode({ data: img.rgba, width: img.width, height: img.height }, 90)
+      .data,
+  );
+}
+
+function downscaleToWidth(src: RgbaImage, targetW: number): RgbaImage {
+  const width = Math.max(1, targetW);
+  const scale = src.width / width;
+  const height = Math.max(1, Math.round(src.height / scale));
+  const out = new Uint8Array(width * height * 4);
+  for (let ty = 0; ty < height; ty++) {
+    const y0 = Math.floor(ty * scale);
+    const y1 = Math.min(
+      src.height,
+      Math.max(y0 + 1, Math.ceil((ty + 1) * scale)),
+    );
+    for (let tx = 0; tx < width; tx++) {
+      const x0 = Math.floor(tx * scale);
+      const x1 = Math.min(
+        src.width,
+        Math.max(x0 + 1, Math.ceil((tx + 1) * scale)),
+      );
+      let r = 0, g = 0, b = 0, a = 0, n = 0;
+      for (let y = y0; y < y1; y++) {
+        for (let x = x0; x < x1; x++) {
+          const i = (y * src.width + x) * 4;
+          const alpha = src.rgba[i + 3];
+          r += src.rgba[i] * alpha;
+          g += src.rgba[i + 1] * alpha;
+          b += src.rgba[i + 2] * alpha;
+          a += alpha;
+          n++;
+        }
+      }
+      const o = (ty * width + tx) * 4;
+      out[o] = a ? Math.round(r / a) : 0;
+      out[o + 1] = a ? Math.round(g / a) : 0;
+      out[o + 2] = a ? Math.round(b / a) : 0;
+      out[o + 3] = Math.round(a / n);
+    }
+  }
+  return { width, height, rgba: out };
+}
+
+function compositeSrcOver(
+  base: RgbaImage,
+  overlay: RgbaImage,
+  ox: number,
+  oy: number,
+): void {
+  for (let y = 0; y < overlay.height; y++) {
+    const by = oy + y;
+    if (by < 0 || by >= base.height) continue;
+    for (let x = 0; x < overlay.width; x++) {
+      const bx = ox + x;
+      if (bx < 0 || bx >= base.width) continue;
+      const si = (y * overlay.width + x) * 4;
+      const sa = overlay.rgba[si + 3] / 255;
+      if (sa === 0) continue;
+      const di = (by * base.width + bx) * 4;
+      const da = base.rgba[di + 3] / 255;
+      const outA = sa + da * (1 - sa);
+      for (let c = 0; c < 3; c++) {
+        base.rgba[di + c] = Math.round(
+          (overlay.rgba[si + c] * sa + base.rgba[di + c] * da * (1 - sa)) /
+            outA,
+        );
+      }
+      base.rgba[di + 3] = Math.round(outA * 255);
+    }
+  }
+}
+
 async function overlayLogo(
   imageBytes: Uint8Array,
   logoPath: string,
   mimeType: "image/png" | "image/jpeg",
 ): Promise<Uint8Array> {
-  const base = await Jimp.fromBuffer(Buffer.from(imageBytes));
-  const logo = await Jimp.read(logoPath);
-  const targetW = Math.round(base.width * 0.12);
-  logo.resize({ w: targetW });
-  const x = base.width - logo.width - 16;
-  const y = base.height - logo.height - 16;
-  base.composite(logo, x, y);
-  const buf = await base.getBuffer(mimeType);
-  return new Uint8Array(buf);
+  const base = decodeRgba(imageBytes);
+  const logo = decodeRgba(await Deno.readFile(logoPath));
+  const scaled = downscaleToWidth(logo, Math.round(base.width * 0.12));
+  const x = base.width - scaled.width - 16;
+  const y = base.height - scaled.height - 16;
+  compositeSrcOver(base, scaled, x, y);
+  return encodeRgba(base, mimeType);
 }
 
 function renderInfographicPage(
@@ -657,12 +769,20 @@ async function writeInfographic(
  */
 export const model = {
   type: "@alvagante/content-infographic",
-  version: "2026.06.24.1",
+  version: "2026.07.05.1",
   globalArguments: z.object({
     apiKey: z.string().optional().meta({ sensitive: true }),
     outputDir: z.string().optional(),
     branding: BrandingSchema.optional(),
   }),
+  upgrades: [
+    {
+      toVersion: "2026.07.05.1",
+      description:
+        "Replace Jimp with pure-JS codecs for the branding logo overlay; no globalArguments schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   resources: {
     infographic: {
       description: "Generated infographic metadata",
