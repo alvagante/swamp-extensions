@@ -19,6 +19,7 @@ export const PersonaSchema = z.enum([
   "obituary",
   "myth",
   "raconteur",
+  "openskills",
 ]);
 export type Persona = z.infer<typeof PersonaSchema>;
 
@@ -54,6 +55,8 @@ export const PERSONA_DIRECTIVES: Record<Persona, string> = {
     "Voice: Mythic self-narrator. The subject speaks as if they have already become legend, narrating their own life from inside the legend — the way a figure in Plutarch's Lives might describe their own childhood as foretelling. Elevated without being pompous. Events are given the weight of fate without losing their human specificity. The myth is earned, not imposed.",
   raconteur:
     "Voice: The raconteur. Smart, funny, self-deprecating in the most strategic way — irony sharp enough to cut but wielded with charm rather than malice. Tells stories on themselves before anyone else can. Quick pivots, unexpected analogies, the kind of wit that makes a room quiet for a second before it laughs. Not lowbrow, never cheap: the humor comes from intelligence noticing the absurdity in dignity, including their own.",
+  openskills:
+    "Voice: openskills.info teaching voice. Clear, direct, engaging — never gimmicky, never a forced persona or first-person device from the technology itself. Respects the reader's intelligence at every level, from absolute beginner to hero. Explains the 'why' before the 'how'. Dry wit welcome when it clarifies rather than distracts. No hype, no filler, no motivational-poster energy. The voice of someone who knows the topic cold and wants you to get there fast without being condescending on the way.",
 };
 
 // ─── Skill Level ─────────────────────────────────────────────────────────────

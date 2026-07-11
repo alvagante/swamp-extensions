@@ -68,7 +68,7 @@ Arguments:
 | `skillLevel`   | No       | `novice`, `intermediate`, `senior`, `guru` | `intermediate`   |
 | `outputLength` | No       | `short`, `medium`, `long`                | `medium`         |
 | `model`        | No       | Any Claude model ID                      | `claude-opus-4-8` |
-| `persona`      | No       | `neutral`, `alvabot`, `cybergeek`, `abnormalia`, `noir`, `glitchpoet`, `fieldnotes`, `oracle`, `baroque`, `deadpan`, `gonzo`, `punkprof` | `neutral`        |
+| `persona`      | No       | `neutral`, `alvabot`, `cybergeek`, `abnormalia`, `noir`, `glitchpoet`, `fieldnotes`, `oracle`, `baroque`, `deadpan`, `gonzo`, `punkprof`, `openskills` | `neutral`        |
 | `personaDescription` | No | Free-text voice directive; overrides `persona` | —          |
 
 ### `save` — agent-driven, keyless
@@ -93,7 +93,7 @@ Arguments:
 | `skillLevel`   | No       | `novice`, `intermediate`, `senior`, `guru` | `intermediate`      |
 | `outputLength` | No       | `short`, `medium`, `long`                | Derived from word count |
 | `model`        | No       | Identifier of whatever produced the content | `external`         |
-| `persona`      | No       | `neutral`, `alvabot`, `cybergeek`, `abnormalia`, `noir`, `glitchpoet`, `fieldnotes`, `oracle`, `baroque`, `deadpan`, `gonzo`, `punkprof` | `neutral`             |
+| `persona`      | No       | `neutral`, `alvabot`, `cybergeek`, `abnormalia`, `noir`, `glitchpoet`, `fieldnotes`, `oracle`, `baroque`, `deadpan`, `gonzo`, `punkprof`, `openskills` | `neutral`             |
 | `personaDescription` | No | Free-text voice description recorded as metadata | —            |
 
 Output is identical to `generate`: a `post` resource and a `markdown` file.
@@ -124,6 +124,7 @@ swamp data latest my-blog markdown
 - **deadpan** — flat, sharp, understated, allergic to hype
 - **gonzo** — first-person technical dispatches with kinetic, subjective energy
 - **punkprof** — rigorous teaching with zine attitude and operational scars
+- **openskills** — openskills.info teaching voice: clear, direct, engaging, no forced persona, respects the reader from beginner to hero
 
 For a custom voice, pass `personaDescription` with your own directive instead — it takes precedence over `persona`:
 

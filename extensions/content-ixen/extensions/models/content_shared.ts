@@ -15,6 +15,7 @@ export const PersonaSchema = z.enum([
   "deadpan",
   "gonzo",
   "punkprof",
+  "openskills",
 ]);
 export type Persona = z.infer<typeof PersonaSchema>;
 
@@ -42,6 +43,8 @@ export const PERSONA_DIRECTIVES: Record<Persona, string> = {
     "Voice: Gonzo technical dispatch. First-person, kinetic, irreverent, and intensely subjective. Bring the reader into the room: the dashboards, the bad coffee, the questionable assumptions, the moment the system tells the truth. Chaotic energy, disciplined facts.",
   punkprof:
     "Voice: Punk professor. Teaches with rigor and attitude. Socratic, impatient with cargo cults, generous with real understanding. Mixes classroom clarity, zine energy, and operational scars. Challenges the reader directly, but never talks down.",
+  openskills:
+    "Voice: openskills.info teaching voice. Clear, direct, engaging — never gimmicky, never a forced persona or first-person device from the technology itself. Respects the reader's intelligence at every level, from absolute beginner to hero. Explains the 'why' before the 'how'. Dry wit welcome when it clarifies rather than distracts. No hype, no filler, no motivational-poster energy. The voice of someone who knows the topic cold and wants you to get there fast without being condescending on the way.",
 };
 
 // ─── Skill Level ─────────────────────────────────────────────────────────────

@@ -152,7 +152,7 @@ async function storePost(
  */
 export const model = {
   type: "@alvagante/content-blog-post",
-  version: "2026.06.23.2",
+  version: "2026.07.11.1",
   globalArguments: z.object({
     apiFormat: ApiFormatSchema.default("anthropic"),
     apiKey: z.string().optional().meta({ sensitive: true }),

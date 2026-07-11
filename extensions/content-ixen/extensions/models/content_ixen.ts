@@ -1994,7 +1994,7 @@ async function storePage(
  */
 export const model = {
   type: "@alvagante/content-ixen",
-  version: "2026.07.05.1",
+  version: "2026.07.11.1",
   upgrades: [
     {
       toVersion: "2026.06.15.1",

@@ -7,5 +7,5 @@ import {
 export const model = {
   ...createSocialModel(PLATFORM_CONFIGS.instagram),
   type: "@alvagante/content-social-instagram",
-  version: "2026.06.23.2",
+  version: "2026.07.11.1",
 };

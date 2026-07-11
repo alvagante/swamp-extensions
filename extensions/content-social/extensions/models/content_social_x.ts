@@ -7,5 +7,5 @@ import {
 export const model = {
   ...createSocialModel(PLATFORM_CONFIGS.x),
   type: "@alvagante/content-social-x",
-  version: "2026.06.23.2",
+  version: "2026.07.11.1",
 };
