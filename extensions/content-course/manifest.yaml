@@ -1,0 +1,21 @@
+manifestVersion: 1
+name: "@alvagante/content-course"
+version: "2026.07.11.1"
+description: "Persist openskills.info mini courses (intro, slides, cheatsheet, quiz, links, video script, sources, optional practice reference and exercise) into courses/<discipline>/<topic-slug>/. Agent-driven save is the required, keyless path — content must be researched and grounded by the caller. generate is a bare ungrounded LLM call kept only for suite parity."
+repository: "https://github.com/alvagante/swamp-extensions"
+models:
+  - content_course.ts
+additionalFiles:
+  - README.md
+  - LICENSE.txt
+platforms:
+  - linux-x86_64
+  - darwin-aarch64
+labels:
+  - content
+  - course
+  - education
+  - markdown
+  - yaml
+  - ai
+  - anthropic

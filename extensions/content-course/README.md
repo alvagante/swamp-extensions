@@ -1,0 +1,144 @@
+# @alvagante/content-course
+
+Persist **openskills.info mini courses** into `courses/<discipline>/<topic-slug>/`, per the site's `create-course` playbook: intro, slides, cheatsheet, quiz, links, video script, sources, plus an optional practice reference and hands-on exercise.
+
+This extension is **persistence, not authoring**. Course content must be researched and grounded in cited primary sources by the calling agent (WebFetch, context7, etc.) — this model has no tool grounding of its own and cannot verify a factual claim. `save` is the required path; `generate` exists only for parity with the rest of the `@alvagante/content-*` suite and is explicitly disqualified for real course content.
+
+## Installation
+
+```sh
+swamp extension install @alvagante/content-course
+```
+
+## Setup
+
+### Agent-driven (no keys) — the required path
+
+```sh
+swamp model create "@alvagante/content-course" my-course
+```
+
+Then use `save`. Global arguments (`apiKey`, `apiFormat`, `baseUrl`) are only needed for the parity-only `generate` method.
+
+### Anthropic (for `generate` only)
+
+```sh
+swamp model create "@alvagante/content-course" my-course \
+  --global-arg apiKey=<YOUR_ANTHROPIC_API_KEY>
+```
+
+Global arguments:
+
+| Argument    | Required            | Default      | Description                                                              |
+| ----------- | -------------------- | ------------ | -------------------------------------------------------------------------- |
+| `apiFormat` | No                    | `anthropic`  | `anthropic` or `openai-compat` (used by `generate` only)                   |
+| `apiKey`    | `generate` + Anthropic | —           | API key; stored in vault, never logged                                     |
+| `baseUrl`   | No                    | —            | Override inference endpoint base URL (used by `generate` only)             |
+| `outputDir` | No                    | `.`          | Catalog root. Courses land at `<outputDir>/courses/<discipline>/<topicSlug>/` |
+
+## Course skeleton
+
+Fixed for every course:
+
+| File                        | Content                                                          | Written when                          |
+| ---------------------------- | ----------------------------------------------------------------- | -------------------------------------- |
+| `course.yaml`                 | Metadata (machine-generated from `save` arguments)                 | always                                 |
+| `01-intro.md`                  | Beginner intro, what/who/why + embedded `## Glossary`               | always                                 |
+| `02-slides.md`                 | Marp/reveal-style deck source                                       | always                                 |
+| `03-cheatsheet.md`             | Dense core-concepts sheet (e.g. `content-cheatsheet`'s markdown output) | always                              |
+| `04-practice-reference.md`     | Commands/config/techniques + embedded `## Common Pitfalls`          | `practiceReferenceType != "none"`      |
+| `05-quiz.yaml`                 | MCQ + explanation, tiered beginner→intermediate→hero                | always                                 |
+| `06-links.yaml`                | Seeded from `primarySources` + AI-supplemented, "where to go next"  | always                                 |
+| `07-video-script.md`           | TTS-narrated-slides script                                           | always                                 |
+| `08-exercise.md`               | Hands-on lab                                                        | `includeExercise: true`                |
+| `sources.yaml`                  | Citations backing every factual claim, incl. quiz answers            | always                                 |
+
+`includeExercise: true` requires `practiceReferenceType != "none"` — there's nothing practical to build a hands-on lab out of otherwise. This is enforced by the `save` schema.
+
+## Usage
+
+### `save` — agent-driven, keyless, the required path
+
+The calling agent researches `primarySources`, drafts and verifies every file (per-claim grounding, including quiz answers and text baked into image artifacts), then calls `save` to persist:
+
+```sh
+swamp model method run my-course save --input-file course-inputs.yaml
+```
+
+Long multi-file content is impractical as `--input` flags — always use `--input-file` with a YAML input file for `save`.
+
+Arguments:
+
+| Argument                    | Required                              | Values                                              | Default      |
+| ----------------------------- | -------------------------------------- | ------------------------------------------------------- | ------------- |
+| `topic`                        | Yes                                     | Curator-scoped topic, e.g. `"Kubernetes Networking"`      | —             |
+| `discipline`                   | Yes                                     | Top-level bucket, e.g. `it`, `business`, `creative`        | —             |
+| `topicSlug`                    | No                                      | Lowercase, hyphen-separated directory slug                 | slugified `topic` |
+| `title`                         | No                                      | Display title for `course.yaml`                            | `topic`       |
+| `primarySources`               | Yes                                     | Array of official docs/homepage URLs                        | —             |
+| `series`, `seriesOrder`, `prerequisite` | No                             | Series linkage metadata                                    | —             |
+| `access`                        | No                                      | `free`, `paywalled`                                          | `free`        |
+| `language`                      | No                                      | Language code                                                | `en`          |
+| `status`                        | No                                      | `draft`, `in_review`, `published`                            | `in_review`   |
+| `humanApproved`                 | `status=published`                      | Human review gate — must be `true` to save as `published`  | `false`       |
+| `lastVerified`, `sourceVersion`, `needsReview` | No                       | Freshness tracking                                          | —             |
+| `practiceReferenceType`         | No                                      | `commands`, `techniques`, `formulas`, `none`                | `none`        |
+| `includeExercise`               | No                                      | Requires `practiceReferenceType != "none"`                  | `false`       |
+| `introContent`                  | Yes                                     | `01-intro.md` body, incl. `## Glossary`                     | —             |
+| `slidesContent`                 | Yes                                     | `02-slides.md` body                                          | —             |
+| `cheatsheetContent`             | Yes                                     | `03-cheatsheet.md` body                                      | —             |
+| `practiceReferenceContent`      | `practiceReferenceType != "none"`       | `04-practice-reference.md` body, incl. `## Common Pitfalls` | —             |
+| `quizContent`                   | Yes                                     | `05-quiz.yaml` body                                           | —             |
+| `linksContent`                  | Yes                                     | `06-links.yaml` body                                          | —             |
+| `videoScriptContent`            | Yes                                     | `07-video-script.md` body                                     | —             |
+| `exerciseContent`               | `includeExercise: true`                 | `08-exercise.md` body                                         | —             |
+| `sourcesContent`                | Yes                                     | `sources.yaml` body                                           | —             |
+| `model`                         | No                                      | Identifier of whatever produced the content                  | `external`    |
+| `outputDir`                     | No                                      | Override the global `outputDir` for this run                 | —             |
+
+### `prepare` — version rotation before a regeneration
+
+Adopts `content-ixen`'s numeric-version-directory rotation: moves an existing course (`course.yaml` + its skeleton files) into the next version directory before a fresh `save`, so regeneration is never destructive. Call before regenerating; skip on a first-ever save.
+
+```sh
+swamp model method run my-course prepare \
+  --input discipline=it \
+  --input topicSlug=kubernetes-networking
+```
+
+### `generate` — bare LLM call, parity only, NOT for real content
+
+```sh
+swamp model method run my-course generate --input topic="Kubernetes Networking"
+```
+
+Produces a single ungrounded draft blob (a `draft` resource, no files written) via one bare LLM call — no `primarySources`, no tool grounding, no fact-checking. Its output is tagged `UNVERIFIED` and must never be treated as course content. Use `save` for anything intended for publication.
+
+### Reading the output
+
+```sh
+# Structured course metadata
+swamp model get my-course --json
+
+# Path of a specific skeleton file
+swamp data latest my-course markdown  # last-written markdown skeleton file
+swamp data latest my-course yaml      # last-written yaml skeleton file
+```
+
+Every skeleton file is also written directly to `<outputDir>/courses/<discipline>/<topicSlug>/` on disk.
+
+## Generation playbook
+
+This extension is one step in an agent-driven playbook, not a fully automated pipeline:
+
+1. Confirm curator inputs (`topic`, `discipline`, `primarySources`, `practiceReferenceType`, `includeExercise`, optional `series`).
+2. Research: fetch `primarySources`, supplement with WebFetch/context7. Do not proceed on invented material.
+3. Draft each skeleton file, in order, in one coherent session — fixed brand voice, themed visuals, fixed skeleton.
+4. Verification pass: every factual claim (prose, quiz answers, text baked into image artifacts) must be grounded in a cited source, tracked in `sources.yaml`. Flag anything ungroundable inline (`<!-- UNVERIFIED: ... -->`) rather than dropping it silently — except quiz answers, which get dropped rather than published unverified.
+5. Call `save` (and composed `content-cheatsheet`/`content-infographic`/`content-card`/`content-image` extensions for visuals) to persist. Set `status: in_review`.
+6. **Human gate — mandatory.** Produce a review summary (unverified-flagged sections + a visual check of every image artifact). Do not save `status: published` without `humanApproved: true`.
+7. On approval, call `save` again with `status: published`, `humanApproved: true`, `lastVerified`, `sourceVersion`.
+
+## License
+
+Apache 2.0 — see LICENSE.txt for details.
