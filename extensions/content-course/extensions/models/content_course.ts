@@ -1,14 +1,4 @@
 import { z } from "npm:zod@4";
-import {
-  type ApiFormat,
-  ApiFormatSchema,
-  buildRequest,
-  extractContent,
-  PERSONA_DIRECTIVES,
-  resolveBaseUrl,
-  type SkillLevel,
-  SkillLevelSchema,
-} from "./content_shared.ts";
 
 // ─── Enums ──────────────────────────────────────────────────────────────────
 
@@ -32,6 +22,7 @@ const CourseSchema = z.object({
   topic: z.string(),
   title: z.string(),
   discipline: z.string(),
+  domain: z.string(),
   topicSlug: z.string(),
   series: z.string().optional(),
   seriesOrder: z.number().int().positive().optional(),
@@ -43,6 +34,9 @@ const CourseSchema = z.object({
   sourceVersion: z.string().optional(),
   needsReview: z.boolean(),
   primarySources: z.array(z.string()),
+  officialLogo: z.string().url(),
+  infographicPath: z.string().optional(),
+  infographicImagePath: z.string().optional(),
   practiceReferenceType: PracticeReferenceTypeSchema,
   includeExercise: z.boolean(),
   filesWritten: z.array(z.string()),
@@ -50,25 +44,14 @@ const CourseSchema = z.object({
   generatedAt: z.string(),
 });
 
-const DraftSchema = z.object({
-  topic: z.string(),
-  content: z.string(),
-  model: z.string(),
-  generatedAt: z.string(),
-  warning: z.string(),
-});
-
 type ModelContext = {
   globalArgs: {
-    apiFormat: ApiFormat;
-    apiKey?: string;
-    baseUrl?: string;
     outputDir?: string;
   };
   writeResource: (
-    specName: "course" | "draft",
+    specName: "course",
     name: string,
-    content: unknown,
+    content: Record<string, unknown>,
   ) => Promise<unknown>;
   createFileWriter: (
     specName: "markdown" | "yaml",
@@ -95,6 +78,8 @@ const SKELETON_FILES = [
   "06-links.yaml",
   "07-video-script.md",
   "08-exercise.md",
+  "infographic.html",
+  "infographic.png",
   "sources.yaml",
 ] as const;
 
@@ -123,6 +108,7 @@ function renderCourseYaml(meta: z.infer<typeof CourseSchema>): string {
     `# ${COURSE_MARKER} — do not edit by hand`,
     `title: ${yamlScalar(meta.title)}`,
     `discipline: ${yamlScalar(meta.discipline)}`,
+    `domain: ${yamlScalar(meta.domain)}`,
     `topic_slug: ${yamlScalar(meta.topicSlug)}`,
   ];
   if (meta.series) lines.push(`series: ${yamlScalar(meta.series)}`);
@@ -149,6 +135,15 @@ function renderCourseYaml(meta: z.infer<typeof CourseSchema>): string {
   lines.push("primary_sources:");
   for (const source of meta.primarySources) {
     lines.push(`  - ${yamlScalar(source)}`);
+  }
+  lines.push(`official_logo: ${yamlScalar(meta.officialLogo)}`);
+  if (meta.infographicPath) {
+    lines.push(`infographic_path: ${yamlScalar(meta.infographicPath)}`);
+  }
+  if (meta.infographicImagePath) {
+    lines.push(
+      `infographic_image_path: ${yamlScalar(meta.infographicImagePath)}`,
+    );
   }
   lines.push(`generated_by_model: ${yamlScalar(meta.model)}`);
   lines.push(`generated_at: ${yamlScalar(meta.generatedAt)}`);
@@ -274,18 +269,11 @@ async function storeCourse(
   return { dataHandles: handles };
 }
 
-function buildDraftSystemPrompt(skillLevel: SkillLevel): string {
-  return `${PERSONA_DIRECTIVES.openskills}
-
-Skill level: ${skillLevel}.
-
-You are producing a rough, UNGROUNDED draft introduction to a technical topic
-for an openskills.info mini course. This is scratch material only — no source
-grounding, no fact-checking, not suitable for publication. Write 300-600 words
-of plain introductory prose: what the topic is, who needs it, and why it
-matters. Do not fabricate specific version numbers, dates, or command syntax
-you are not confident about; when in doubt, speak in general terms rather than
-inventing specifics.`;
+function faviconUrl(primarySource: string, size = 128): string {
+  const hostname = new URL(primarySource).hostname;
+  return `https://www.google.com/s2/favicons?domain=${
+    encodeURIComponent(hostname)
+  }&sz=${size}`;
 }
 
 /**
@@ -293,26 +281,29 @@ inventing specifics.`;
  * links, video script, optional practice reference and exercise) into
  * courses/<discipline>/<topic-slug>/, per the create-course playbook.
  *
- * `save` is the required path: the calling agent researches primary_sources,
- * drafts and verifies every file, then calls save to persist — keylessly, no
- * LLM call made here. `generate` is a bare, ungrounded single-call draft kept
- * only for parity with the rest of the @alvagante/content-* suite; it is
- * explicitly disqualified for anything claiming accuracy. `prepare` rotates
- * an existing course into a numbered version directory before a refresh, so
- * regeneration is never destructive.
+ * The calling agent researches primary_sources, drafts and verifies every
+ * file, optionally generates a composed infographic, then calls save to persist.
+ * `prepare` rotates an existing course into a numbered version directory
+ * before a refresh, so regeneration is never destructive.
  */
 export const model = {
   type: "@alvagante/content-course",
-  version: "2026.07.11.1",
+  version: "2026.07.12.1",
 
   globalArguments: z.object({
-    apiFormat: ApiFormatSchema.default("anthropic"),
-    apiKey: z.string().optional().meta({ sensitive: true }),
-    baseUrl: z.string().url().optional(),
     outputDir: z.string().optional().describe(
       "Catalog root. Courses are written to <outputDir>/courses/<discipline>/<topicSlug>/. Defaults to '.'",
     ),
   }),
+  upgrades: [
+    {
+      toVersion: "2026.07.12.1",
+      description:
+        "Remove the unused inference configuration and generate method; add catalog domain, course-page logo, and optional infographic metadata.",
+      upgradeAttributes: (old: Record<string, unknown>) =>
+        typeof old.outputDir === "string" ? { outputDir: old.outputDir } : {},
+    },
+  ],
 
   resources: {
     course: {
@@ -321,13 +312,6 @@ export const model = {
       schema: CourseSchema,
       lifetime: "infinite" as const,
       garbageCollection: 20,
-    },
-    draft: {
-      description:
-        "Ungrounded draft blob from the parity-only generate method. Never treat as verified course content.",
-      schema: DraftSchema,
-      lifetime: "infinite" as const,
-      garbageCollection: 5,
     },
   },
 
@@ -394,91 +378,6 @@ export const model = {
       },
     },
 
-    generate: {
-      description:
-        "Bare LLM call producing a single ungrounded draft blob (no tool grounding, no primary_sources). Exists for suite parity only — DISQUALIFIED for real course content, which must be grounded in cited sources per the create-course playbook. Use save for anything intended for publication.",
-      arguments: z.object({
-        topic: z.string().min(1),
-        details: z.string().optional(),
-        skillLevel: SkillLevelSchema.default("intermediate"),
-        model: z.string().default("claude-opus-4-8"),
-      }),
-      execute: async (
-        args: {
-          topic: string;
-          details?: string;
-          skillLevel: SkillLevel;
-          model: string;
-        },
-        context: ModelContext,
-      ) => {
-        const { apiFormat, apiKey, baseUrl: rawBaseUrl } = context.globalArgs;
-
-        if (apiFormat === "anthropic" && !apiKey) {
-          throw new Error(
-            "apiKey is required when apiFormat is 'anthropic'",
-          );
-        }
-
-        context.logger.info(
-          "Generating ungrounded draft on {topic} — NOT for published content, use save",
-          { topic: args.topic, model: args.model },
-        );
-
-        const systemPrompt = buildDraftSystemPrompt(args.skillLevel);
-        const userMessage = args.details
-          ? `Topic: ${args.topic}\n\nAdditional context: ${args.details}`
-          : `Topic: ${args.topic}`;
-        const baseUrl = resolveBaseUrl(apiFormat, rawBaseUrl);
-
-        const { url, headers, body } = buildRequest(
-          apiFormat,
-          apiKey,
-          baseUrl,
-          args.model,
-          systemPrompt,
-          userMessage,
-          4000,
-        );
-
-        const response = await fetch(url, {
-          method: "POST",
-          headers,
-          body: JSON.stringify(body),
-        });
-
-        if (!response.ok) {
-          const errorBody = await response.text();
-          throw new Error(
-            `Inference API error ${response.status} from ${url}: ${errorBody}`,
-          );
-        }
-
-        const responseJson = await response.json();
-        const { text: content, stopReason } = extractContent(
-          apiFormat,
-          responseJson,
-        );
-
-        if (!content) {
-          throw new Error(
-            `No text content in API response (stop_reason: ${stopReason})`,
-          );
-        }
-
-        const draftHandle = await context.writeResource("draft", "draft", {
-          topic: args.topic,
-          content,
-          model: args.model,
-          generatedAt: new Date().toISOString(),
-          warning:
-            "UNVERIFIED — ungrounded bare LLM call, not suitable for published course content. Use save with researched, cited content instead.",
-        });
-
-        return { dataHandles: [draftHandle] };
-      },
-    },
-
     save: {
       description:
         "Store an agent-written course (researched and verified by the caller) without making any inference call — no API key or endpoint required. The required path per the create-course playbook.",
@@ -489,15 +388,20 @@ export const model = {
         discipline: z.string().min(1).describe(
           "Top-level catalog bucket, e.g. 'it', 'business', 'creative'",
         ),
+        domain: z.string().min(1).describe(
+          "Navigation group within the discipline, e.g. 'Networking'",
+        ),
         topicSlug: z.string().min(1).optional().describe(
           "Lowercase, hyphen-separated directory slug. Derived from topic if omitted.",
         ),
         title: z.string().min(1).optional().describe(
           "Display title for course.yaml. Defaults to topic.",
         ),
-        primarySources: z.array(z.string().min(1)).min(1).describe(
+        primarySources: z.array(z.string().url()).min(1).describe(
           "Official docs/homepage URL(s) backing this course. Required — generation does not proceed on a bare topic name with zero seeding.",
         ),
+        infographicPath: z.literal("infographic.html").optional(),
+        infographicImagePath: z.literal("infographic.png").optional(),
         series: z.string().min(1).optional(),
         seriesOrder: z.number().int().positive().optional(),
         prerequisite: z.string().min(1).optional(),
@@ -581,14 +485,25 @@ export const model = {
               "status=published requires humanApproved=true — the human review gate is mandatory, not optional.",
           });
         }
+        if (!!args.infographicPath !== !!args.infographicImagePath) {
+          ctx.addIssue({
+            code: "custom",
+            path: ["infographicPath"],
+            message:
+              "infographicPath and infographicImagePath must be provided together",
+          });
+        }
       }),
       execute: async (
         args: {
           topic: string;
           discipline: string;
+          domain: string;
           topicSlug?: string;
           title?: string;
           primarySources: string[];
+          infographicPath?: "infographic.html";
+          infographicImagePath?: "infographic.png";
           series?: string;
           seriesOrder?: number;
           prerequisite?: string;
@@ -617,6 +532,27 @@ export const model = {
       ) => {
         const topicSlug = args.topicSlug ?? slugify(args.topic);
         const title = args.title ?? args.topic;
+        const courseDir = courseDirFor(
+          args.outputDir ?? context.globalArgs.outputDir,
+          args.discipline,
+          topicSlug,
+        );
+
+        for (
+          const infographicFile of [
+            args.infographicPath,
+            args.infographicImagePath,
+          ]
+        ) {
+          if (
+            infographicFile &&
+            !await pathExists(`${courseDir}/${infographicFile}`)
+          ) {
+            throw new Error(
+              `Required infographic artifact not found: ${courseDir}/${infographicFile}. Run content-infographic.generate before content-course.save.`,
+            );
+          }
+        }
 
         if (!args.introContent.includes("## Glossary")) {
           context.logger.info(
@@ -639,6 +575,7 @@ export const model = {
           {
             topic: args.topic,
             discipline: args.discipline,
+            domain: args.domain,
             topicSlug,
             status: args.status,
           },
@@ -716,6 +653,7 @@ export const model = {
             topic: args.topic,
             title,
             discipline: args.discipline,
+            domain: args.domain,
             topicSlug,
             series: args.series,
             seriesOrder: args.seriesOrder,
@@ -727,6 +665,9 @@ export const model = {
             sourceVersion: args.sourceVersion,
             needsReview: args.needsReview,
             primarySources: args.primarySources,
+            officialLogo: faviconUrl(args.primarySources[0]),
+            infographicPath: args.infographicPath,
+            infographicImagePath: args.infographicImagePath,
             practiceReferenceType: args.practiceReferenceType,
             includeExercise: args.includeExercise,
             model: args.model,

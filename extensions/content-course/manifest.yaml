@@ -1,7 +1,7 @@
 manifestVersion: 1
 name: "@alvagante/content-course"
-version: "2026.07.11.1"
-description: "Persist openskills.info mini courses (intro, slides, cheatsheet, quiz, links, video script, sources, optional practice reference and exercise) into courses/<discipline>/<topic-slug>/. Agent-driven save is the required, keyless path — content must be researched and grounded by the caller. generate is a bare ungrounded LLM call kept only for suite parity."
+version: "2026.07.12.1"
+description: "Persist grounded openskills.info mini courses and optional composed infographics into courses/<discipline>/<topic-slug>/. Content is authored and verified by the calling agent; this extension performs no inference."
 repository: "https://github.com/alvagante/swamp-extensions"
 models:
   - content_course.ts
@@ -18,4 +18,4 @@ labels:
   - markdown
   - yaml
   - ai
-  - anthropic
+  - infographic
