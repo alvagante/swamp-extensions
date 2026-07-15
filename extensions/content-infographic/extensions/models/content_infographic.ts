@@ -42,7 +42,7 @@ const InfographicSchema = z.object({
   quality: QualitySchema,
   format: OutputFormatSchema,
   filename: z.string(),
-  htmlFilename: z.string(),
+  htmlFilename: z.string().optional(),
   imagePath: z.string().optional(),
   htmlPath: z.string().optional(),
   generatedAt: z.string(),
@@ -715,7 +715,8 @@ async function writeInfographic(
   metadata: InfographicMetadata,
   imageBytes: Uint8Array,
   imageB64: string,
-  outputDir?: string,
+  outputDir: string | undefined,
+  emitHtml: boolean,
 ): Promise<{ dataHandles: unknown[] }> {
   const handles: unknown[] = [];
   const resourceHandle = await context.writeResource(
@@ -733,24 +734,37 @@ async function writeInfographic(
   }
   handles.push(await imageWriter.writeAll(imageBytes));
 
-  const imageSrc = outputDir
-    ? `./${metadata.filename}`
-    : `data:${MIME_TYPES[metadata.format]};base64,${imageB64}`;
-  const html = renderInfographicPage(metadata, imageSrc);
-  const htmlWriter = context.createFileWriter("html", "html");
-  if (!htmlWriter.writeText) {
-    throw new Error("html writer does not support text writes");
+  let html: string | undefined;
+  if (emitHtml) {
+    const imageSrc = outputDir
+      ? `./${metadata.filename}`
+      : `data:${MIME_TYPES[metadata.format]};base64,${imageB64}`;
+    html = renderInfographicPage(metadata, imageSrc);
+    const htmlWriter = context.createFileWriter("html", "html");
+    if (!htmlWriter.writeText) {
+      throw new Error("html writer does not support text writes");
+    }
+    handles.push(await htmlWriter.writeText(html));
   }
-  handles.push(await htmlWriter.writeText(html));
 
   if (outputDir) {
     await Deno.mkdir(outputDir, { recursive: true });
     await Deno.writeFile(`${outputDir}/${metadata.filename}`, imageBytes);
-    await Deno.writeTextFile(`${outputDir}/${metadata.htmlFilename}`, html);
-    context.logger.info("Infographic written to {outputDir}/{htmlFilename}", {
-      outputDir,
-      htmlFilename: metadata.htmlFilename,
-    });
+    if (html && metadata.htmlFilename) {
+      await Deno.writeTextFile(`${outputDir}/${metadata.htmlFilename}`, html);
+      context.logger.info(
+        "Infographic written to {outputDir}/{htmlFilename}",
+        { outputDir, htmlFilename: metadata.htmlFilename },
+      );
+    } else {
+      context.logger.info(
+        "Infographic image written to {outputDir}/{filename}",
+        {
+          outputDir,
+          filename: metadata.filename,
+        },
+      );
+    }
   }
 
   context.logger.info("Infographic stored: {title}", {
@@ -764,12 +778,13 @@ async function writeInfographic(
 
 /**
  * Infographic generator using the OpenAI Images API. It stores the generated
- * image plus a browser-ready HTML infographic page. The HTML keeps explanatory
- * text reliable while the OpenAI image carries the visual composition.
+ * image plus, optionally, a browser-ready HTML infographic page for callers
+ * that embed it (e.g. content-ixen). Consumers that only need the image can
+ * set `emitHtml: false` to skip that file entirely.
  */
 export const model = {
   type: "@alvagante/content-infographic",
-  version: "2026.07.05.1",
+  version: "2026.07.15.1",
   globalArguments: z.object({
     apiKey: z.string().optional().meta({ sensitive: true }),
     outputDir: z.string().optional(),
@@ -780,6 +795,12 @@ export const model = {
       toVersion: "2026.07.05.1",
       description:
         "Replace Jimp with pure-JS codecs for the branding logo overlay; no globalArguments schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.07.15.1",
+      description:
+        "Add emitHtml method argument (default true) to skip the HTML wrapper file; no globalArguments schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -808,7 +829,7 @@ export const model = {
   methods: {
     generate: {
       description:
-        "Generate an infographic image with OpenAI and wrap it in a reliable HTML page suitable for embedding in content-ixen.",
+        "Generate an infographic image with OpenAI, optionally wrapping it in a reliable HTML page suitable for embedding in content-ixen (set emitHtml: false to skip the HTML file).",
       arguments: z.object({
         topic: z.string().min(1),
         title: z.string().min(1).optional(),
@@ -822,6 +843,7 @@ export const model = {
         quality: QualitySchema.default("auto"),
         format: OutputFormatSchema.default("png"),
         filename: z.string().optional(),
+        emitHtml: z.boolean().default(true),
         htmlFilename: z.string().optional(),
         outputDir: z.string().optional(),
       }),
@@ -839,6 +861,7 @@ export const model = {
           quality: Quality;
           format: OutputFormat;
           filename?: string;
+          emitHtml: boolean;
           htmlFilename?: string;
           outputDir?: string;
         },
@@ -863,7 +886,9 @@ export const model = {
         const size = args.size ?? DEFAULT_SIZE[args.orientation];
         const filename = args.filename ??
           buildImageFilename(title, args.format);
-        const htmlFilename = args.htmlFilename ?? buildHtmlFilename(title);
+        const htmlFilename = args.emitHtml
+          ? (args.htmlFilename ?? buildHtmlFilename(title))
+          : undefined;
         const outputDir = args.outputDir ?? context.globalArgs.outputDir;
         const augmentedPrompt = augmentPrompt({
           title,
@@ -933,7 +958,9 @@ export const model = {
           filename,
           htmlFilename,
           imagePath: outputDir ? `${outputDir}/${filename}` : undefined,
-          htmlPath: outputDir ? `${outputDir}/${htmlFilename}` : undefined,
+          htmlPath: outputDir && htmlFilename
+            ? `${outputDir}/${htmlFilename}`
+            : undefined,
           generatedAt,
         };
 
@@ -943,12 +970,13 @@ export const model = {
           imageBytes,
           imageB64,
           outputDir,
+          args.emitHtml,
         );
       },
     },
     save: {
       description:
-        "Store an externally provided infographic image without calling OpenAI, wrapping it in the same HTML page shell.",
+        "Store an externally provided infographic image without calling OpenAI, optionally wrapping it in the same HTML page shell (set emitHtml: false to skip the HTML file).",
       arguments: z.object({
         topic: z.string().min(1),
         title: z.string().min(1).optional(),
@@ -962,6 +990,7 @@ export const model = {
         quality: QualitySchema.default("auto"),
         format: OutputFormatSchema.default("png"),
         filename: z.string().optional(),
+        emitHtml: z.boolean().default(true),
         htmlFilename: z.string().optional(),
         model: z.string().default("external"),
         outputDir: z.string().optional(),
@@ -980,6 +1009,7 @@ export const model = {
           quality: Quality;
           format: OutputFormat;
           filename?: string;
+          emitHtml: boolean;
           htmlFilename?: string;
           model: string;
           outputDir?: string;
@@ -996,7 +1026,9 @@ export const model = {
         const size = args.size ?? DEFAULT_SIZE[args.orientation];
         const filename = args.filename ??
           buildImageFilename(title, args.format);
-        const htmlFilename = args.htmlFilename ?? buildHtmlFilename(title);
+        const htmlFilename = args.emitHtml
+          ? (args.htmlFilename ?? buildHtmlFilename(title))
+          : undefined;
         const outputDir = args.outputDir ?? context.globalArgs.outputDir;
         const prompt = `External infographic image for ${title}`;
         let imageBytes = decodeBase64(args.imageBase64);
@@ -1034,7 +1066,9 @@ export const model = {
           filename,
           htmlFilename,
           imagePath: outputDir ? `${outputDir}/${filename}` : undefined,
-          htmlPath: outputDir ? `${outputDir}/${htmlFilename}` : undefined,
+          htmlPath: outputDir && htmlFilename
+            ? `${outputDir}/${htmlFilename}`
+            : undefined,
           generatedAt,
         };
 
@@ -1044,6 +1078,7 @@ export const model = {
           imageBytes,
           imageB64,
           outputDir,
+          args.emitHtml,
         );
       },
     },

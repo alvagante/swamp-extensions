@@ -2,7 +2,7 @@
 
 Generate browser-ready **infographic pages** using the OpenAI Images API.
 
-The model creates a generated image plus an HTML page that keeps the explanatory text reliable. This is deliberate: the image carries the visual composition, while the page shell renders title, details, and key points as normal HTML.
+The model creates a generated image plus, by default, an HTML page that keeps the explanatory text reliable: the image carries the visual composition, while the page shell renders title, details, and key points as normal HTML. Callers that only need the image (no `content-ixen` embedding) can pass `emitHtml: false` to skip the HTML file entirely.
 
 ## Installation
 
@@ -56,7 +56,8 @@ Arguments:
 | `quality`      | No       | `auto`, `low`, `medium`, `high`                  | `auto`                     |
 | `format`       | No       | `png`, `webp`, `jpeg`                            | `png`                      |
 | `filename`     | No       | Generated image filename                         | Slug + timestamp           |
-| `htmlFilename` | No       | Generated HTML filename                          | `{title}-infographic.html` |
+| `emitHtml`     | No       | Set `false` to skip the HTML wrapper file        | `true`                     |
+| `htmlFilename` | No       | Generated HTML filename (ignored if `emitHtml: false`) | `{title}-infographic.html` |
 | `outputDir`    | No       | Override global output directory                 | -                          |
 
 Common `size` values:
@@ -84,6 +85,8 @@ swamp model method run my-infographic save \
   --input htmlFilename=puppet-catalog-infographic.html
 ```
 
+Accepts the same `emitHtml` argument as `generate` — pass `emitHtml: false` to store only the image.
+
 ## Composing with content-ixen
 
 Write the infographic HTML into the same `outputDir` as the Ixen page, then pass the relative path:
@@ -102,7 +105,7 @@ For multiple infographics, pass `infographicPaths` as an array of relative HTML 
 | ------------- | -------- | ------------------------------------------------ |
 | `infographic` | resource | Metadata: title, topic, filenames, prompt, model |
 | `imageFile`   | file     | Generated image bytes                            |
-| `html`        | file     | Self-contained infographic HTML page             |
+| `html`        | file     | Self-contained infographic HTML page (skipped when `emitHtml: false`) |
 
 Access the relative HTML filename via CEL:
 

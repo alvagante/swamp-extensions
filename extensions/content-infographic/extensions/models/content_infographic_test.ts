@@ -66,6 +66,7 @@ Deno.test("generate composites branding logo onto PNG output", async () => {
         quality: "auto",
         format: "png",
         filename: "branded.png",
+        emitHtml: true,
         htmlFilename: "branded-infographic.html",
         outputDir,
       },
@@ -163,6 +164,7 @@ Deno.test("generate writes infographic image, HTML, and metadata", async () => {
         quality: "auto",
         format: "png",
         filename: "catalog.png",
+        emitHtml: true,
         htmlFilename: "catalog-infographic.html",
         outputDir,
       },
@@ -202,6 +204,94 @@ Deno.test("generate writes infographic image, HTML, and metadata", async () => {
     html.includes('src="./catalog.png"'),
     "expected relative image reference",
   );
+});
+
+Deno.test("generate skips the HTML file when emitHtml is false", async () => {
+  const originalFetch = globalThis.fetch;
+  const outputDir = await Deno.makeTempDir({ prefix: "content-infographic-" });
+  const resources: unknown[] = [];
+  const fileWrites: Array<{ kind: string; value: unknown }> = [];
+
+  globalThis.fetch = (() =>
+    Promise.resolve({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          data: [{ b64_json: "AQID" }],
+        }),
+    } as Response)) as typeof fetch;
+
+  const context = {
+    globalArgs: { apiKey: "test-key" },
+    writeResource: (_specName: string, _name: string, content: unknown) => {
+      resources.push(content);
+      return Promise.resolve({ resource: true });
+    },
+    createFileWriter: (specName: string) => ({
+      writeText: (text: string) => {
+        fileWrites.push({ kind: `${specName}:text`, value: text });
+        return Promise.resolve({ text: true });
+      },
+      writeAll: (bytes: Uint8Array) => {
+        fileWrites.push({ kind: `${specName}:bytes`, value: [...bytes] });
+        return Promise.resolve({ bytes: true });
+      },
+    }),
+    logger: {
+      info: () => {},
+      error: () => {},
+    },
+  };
+
+  try {
+    await model.methods.generate.execute(
+      {
+        topic: "Puppet catalog compilation",
+        title: "Puppet Catalog Infographic",
+        keyPoints: [],
+        style: "technical-diagram",
+        orientation: "wide",
+        model: "gpt-image-2",
+        background: "opaque",
+        quality: "auto",
+        format: "png",
+        filename: "catalog.png",
+        emitHtml: false,
+        outputDir,
+      },
+      context,
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+
+  const metadata = resources[0] as {
+    filename?: string;
+    htmlFilename?: string;
+  };
+  assert(metadata.filename === "catalog.png", "expected metadata filename");
+  assert(
+    metadata.htmlFilename === undefined,
+    "expected no html filename in metadata",
+  );
+  assert(
+    !fileWrites.some((write) => write.kind === "html:text"),
+    "expected no HTML file write",
+  );
+  assert(
+    fileWrites.some((write) => write.kind === "imageFile:bytes"),
+    "expected image file write",
+  );
+
+  const image = await Deno.readFile(`${outputDir}/catalog.png`);
+  assert(image.length === 3, "expected image bytes in outputDir");
+  let htmlExists = true;
+  try {
+    await Deno.stat(`${outputDir}/catalog-infographic.html`);
+  } catch {
+    htmlExists = false;
+  }
+  assert(!htmlExists, "expected no HTML file written to outputDir");
 });
 
 Deno.test("generate rejects OpenAI errors before writing", async () => {
@@ -250,6 +340,7 @@ Deno.test("generate rejects OpenAI errors before writing", async () => {
           background: "opaque",
           quality: "auto",
           format: "png",
+          emitHtml: true,
         },
         context,
       );
