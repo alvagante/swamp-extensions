@@ -294,6 +294,99 @@ Deno.test("generate skips the HTML file when emitHtml is false", async () => {
   assert(!htmlExists, "expected no HTML file written to outputDir");
 });
 
+Deno.test("save writes HTML by default and skips it when emitHtml is false", async () => {
+  const outputDir = await Deno.makeTempDir({ prefix: "content-infographic-" });
+  const basePng = solidPng(4, 4, [10, 20, 30, 255]);
+  const imageBase64 = toBase64(basePng);
+
+  function makeContext() {
+    const resources: unknown[] = [];
+    const fileWrites: Array<{ kind: string }> = [];
+    return {
+      context: {
+        globalArgs: {},
+        writeResource: (_specName: string, _name: string, content: unknown) => {
+          resources.push(content);
+          return Promise.resolve({ resource: true });
+        },
+        createFileWriter: (specName: string) => ({
+          writeText: () => {
+            fileWrites.push({ kind: `${specName}:text` });
+            return Promise.resolve({ text: true });
+          },
+          writeAll: () => {
+            fileWrites.push({ kind: `${specName}:bytes` });
+            return Promise.resolve({ bytes: true });
+          },
+        }),
+        logger: { info: () => {}, error: () => {} },
+      },
+      resources,
+      fileWrites,
+    };
+  }
+
+  const withHtml = makeContext();
+  await model.methods.save.execute(
+    {
+      topic: "External infographic",
+      title: "External Infographic",
+      keyPoints: [],
+      imageBase64,
+      style: "clean",
+      orientation: "wide",
+      background: "opaque",
+      quality: "auto",
+      format: "png",
+      filename: "external.png",
+      emitHtml: true,
+      model: "external",
+      outputDir,
+    },
+    withHtml.context,
+  );
+  assert(
+    withHtml.fileWrites.some((write) => write.kind === "html:text"),
+    "expected HTML file write when emitHtml is true",
+  );
+  const metadataWithHtml = withHtml.resources[0] as { htmlFilename?: string };
+  assert(
+    typeof metadataWithHtml.htmlFilename === "string",
+    "expected html filename in metadata when emitHtml is true",
+  );
+
+  const withoutHtml = makeContext();
+  await model.methods.save.execute(
+    {
+      topic: "External infographic",
+      title: "External Infographic",
+      keyPoints: [],
+      imageBase64,
+      style: "clean",
+      orientation: "wide",
+      background: "opaque",
+      quality: "auto",
+      format: "png",
+      filename: "external-no-html.png",
+      emitHtml: false,
+      model: "external",
+      outputDir,
+    },
+    withoutHtml.context,
+  );
+  assert(
+    !withoutHtml.fileWrites.some((write) => write.kind === "html:text"),
+    "expected no HTML file write when emitHtml is false",
+  );
+  const metadataWithoutHtml = withoutHtml.resources[0] as {
+    htmlFilename?: string;
+  };
+  assert(
+    metadataWithoutHtml.htmlFilename === undefined,
+    "expected no html filename in metadata when emitHtml is false",
+  );
+});
+
 Deno.test("generate rejects OpenAI errors before writing", async () => {
   const originalFetch = globalThis.fetch;
   let writeCount = 0;
