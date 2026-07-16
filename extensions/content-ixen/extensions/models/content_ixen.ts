@@ -1994,7 +1994,7 @@ async function storePage(
  */
 export const model = {
   type: "@alvagante/content-ixen",
-  version: "2026.07.11.1",
+  version: "2026.07.16.1",
   upgrades: [
     {
       toVersion: "2026.06.15.1",
@@ -2102,6 +2102,16 @@ export const model = {
       toVersion: "2026.07.05.1",
       description:
         "Raise the long outputLength max_tokens from 16000 to 24000 so dense 8-concept pages complete without truncation; no globalArguments schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.07.11.1",
+      description: "Add openskills persona preset",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.07.16.1",
+      description: "Fix missing upgrade chain entry",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

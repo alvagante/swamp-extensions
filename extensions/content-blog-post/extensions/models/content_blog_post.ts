@@ -152,7 +152,7 @@ async function storePost(
  */
 export const model = {
   type: "@alvagante/content-blog-post",
-  version: "2026.07.11.1",
+  version: "2026.07.16.1",
   globalArguments: z.object({
     apiFormat: ApiFormatSchema.default("anthropic"),
     apiKey: z.string().optional().meta({ sensitive: true }),
@@ -169,6 +169,22 @@ export const model = {
       toVersion: "2026.06.23.1",
       description:
         "Consolidate LLM utilities into shared/content_shared.ts; no schema or behaviour changes.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.23.2",
+      description:
+        "Package shared content helpers with extension; no schema or behaviour changes.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.07.11.1",
+      description: "Add openskills persona preset",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.07.16.1",
+      description: "Fix missing upgrade chain entries",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
