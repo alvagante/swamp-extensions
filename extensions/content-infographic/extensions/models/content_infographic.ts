@@ -784,7 +784,7 @@ async function writeInfographic(
  */
 export const model = {
   type: "@alvagante/content-infographic",
-  version: "2026.07.15.1",
+  version: "2026.08.02.1",
   globalArguments: z.object({
     apiKey: z.string().optional().meta({ sensitive: true }),
     outputDir: z.string().optional(),
@@ -801,6 +801,12 @@ export const model = {
       toVersion: "2026.07.15.1",
       description:
         "Add emitHtml method argument (default true) to skip the HTML wrapper file; no globalArguments schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.08.02.1",
+      description:
+        "Sync shared/content_shared.ts (adds douglasadams persona preset upstream; this extension does not expose a persona argument, no functional change)",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

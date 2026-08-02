@@ -152,7 +152,7 @@ async function storePost(
  */
 export const model = {
   type: "@alvagante/content-blog-post",
-  version: "2026.07.16.1",
+  version: "2026.08.02.1",
   globalArguments: z.object({
     apiFormat: ApiFormatSchema.default("anthropic"),
     apiKey: z.string().optional().meta({ sensitive: true }),
@@ -185,6 +185,11 @@ export const model = {
     {
       toVersion: "2026.07.16.1",
       description: "Fix missing upgrade chain entries",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.08.02.1",
+      description: "Add douglasadams persona preset",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

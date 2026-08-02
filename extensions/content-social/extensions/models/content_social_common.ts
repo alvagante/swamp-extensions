@@ -201,6 +201,8 @@ const PERSONA_DIRECTIVES: Record<Persona, string> = {
     "Voice: punk professor. Rigorous, direct, anti-cargo-cult. Teaches with zine energy, operational scars, and no talking down.",
   openskills:
     "Voice: openskills.info teaching voice. Clear, direct, engaging, never gimmicky. Respects the reader from beginner to hero, explains why before how, no hype.",
+  douglasadams:
+    "Voice: Douglas Adams. Absurdist, digressive, warmly cynical about bureaucracy, technology, and cosmic indifference. Deadpan understatement collides with wildly precise analogies; parenthetical asides land the point harder than the main sentence did. Fond of the mess, never actually cruel.",
 };
 
 /** Platform-specific defaults for the five content-social model entrypoints. */
@@ -209,7 +211,7 @@ export const PLATFORM_CONFIGS: Record<PlatformConfig["key"], PlatformConfig> = {
     key: "facebook",
     type: "@alvagante/content-social-facebook",
     label: "Facebook",
-    version: "2026.07.11.1",
+    version: "2026.08.02.1",
     targetCharacters: 800,
     shortCharacters: 180,
     hashtagTarget: 4,
@@ -223,7 +225,7 @@ export const PLATFORM_CONFIGS: Record<PlatformConfig["key"], PlatformConfig> = {
     key: "x",
     type: "@alvagante/content-social-x",
     label: "X",
-    version: "2026.07.11.1",
+    version: "2026.08.02.1",
     targetCharacters: 280,
     shortCharacters: 220,
     hashtagTarget: 2,
@@ -237,7 +239,7 @@ export const PLATFORM_CONFIGS: Record<PlatformConfig["key"], PlatformConfig> = {
     key: "linkedin",
     type: "@alvagante/content-social-linkedin",
     label: "LinkedIn",
-    version: "2026.07.11.1",
+    version: "2026.08.02.1",
     targetCharacters: 1300,
     shortCharacters: 300,
     hashtagTarget: 5,
@@ -251,7 +253,7 @@ export const PLATFORM_CONFIGS: Record<PlatformConfig["key"], PlatformConfig> = {
     key: "tiktok",
     type: "@alvagante/content-social-tiktok",
     label: "TikTok",
-    version: "2026.07.11.1",
+    version: "2026.08.02.1",
     targetCharacters: 300,
     shortCharacters: 150,
     hashtagTarget: 6,
@@ -265,7 +267,7 @@ export const PLATFORM_CONFIGS: Record<PlatformConfig["key"], PlatformConfig> = {
     key: "instagram",
     type: "@alvagante/content-social-instagram",
     label: "Instagram",
-    version: "2026.07.11.1",
+    version: "2026.08.02.1",
     targetCharacters: 2200,
     shortCharacters: 150,
     hashtagTarget: 12,

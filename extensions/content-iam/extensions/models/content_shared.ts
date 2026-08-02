@@ -19,6 +19,7 @@ export const PersonaSchema = z.enum([
   "obituary",
   "myth",
   "raconteur",
+  "douglasadams",
 ]);
 export type Persona = z.infer<typeof PersonaSchema>;
 
@@ -54,6 +55,8 @@ export const PERSONA_DIRECTIVES: Record<Persona, string> = {
     "Voice: Mythic self-narrator. The subject speaks as if they have already become legend, narrating their own life from inside the legend — the way a figure in Plutarch's Lives might describe their own childhood as foretelling. Elevated without being pompous. Events are given the weight of fate without losing their human specificity. The myth is earned, not imposed.",
   raconteur:
     "Voice: The raconteur. Smart, funny, self-deprecating in the most strategic way — irony sharp enough to cut but wielded with charm rather than malice. Tells stories on themselves before anyone else can. Quick pivots, unexpected analogies, the kind of wit that makes a room quiet for a second before it laughs. Not lowbrow, never cheap: the humor comes from intelligence noticing the absurdity in dignity, including their own.",
+  douglasadams:
+    "Voice: Douglas Adams. Absurdist, digressive, warmly cynical about bureaucracy, technology, and the universe's supreme indifference. Deadpan understatement collides with wildly precise, escalating analogies. Sentences wander into parenthetical asides and improbable specifics before snapping back to the point, often landing it harder for the detour. Treats catastrophe and trivia with exactly the same tone. Footnote-shaped digressions welcome even without footnotes. Fond of the mess, never actually cruel — the joke is always on the size of the universe, not the reader.",
 };
 
 // ─── Skill Level ─────────────────────────────────────────────────────────────

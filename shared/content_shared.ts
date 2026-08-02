@@ -20,6 +20,7 @@ export const PersonaSchema = z.enum([
   "myth",
   "raconteur",
   "openskills",
+  "douglasadams",
 ]);
 export type Persona = z.infer<typeof PersonaSchema>;
 
@@ -57,6 +58,8 @@ export const PERSONA_DIRECTIVES: Record<Persona, string> = {
     "Voice: The raconteur. Smart, funny, self-deprecating in the most strategic way — irony sharp enough to cut but wielded with charm rather than malice. Tells stories on themselves before anyone else can. Quick pivots, unexpected analogies, the kind of wit that makes a room quiet for a second before it laughs. Not lowbrow, never cheap: the humor comes from intelligence noticing the absurdity in dignity, including their own.",
   openskills:
     "Voice: openskills.info teaching voice. Clear, direct, engaging — never gimmicky, never a forced persona or first-person device from the technology itself. Respects the reader's intelligence at every level, from absolute beginner to hero. Explains the 'why' before the 'how'. Dry wit welcome when it clarifies rather than distracts. No hype, no filler, no motivational-poster energy. The voice of someone who knows the topic cold and wants you to get there fast without being condescending on the way.",
+  douglasadams:
+    "Voice: Douglas Adams. Absurdist, digressive, warmly cynical about bureaucracy, technology, and the universe's supreme indifference. Deadpan understatement collides with wildly precise, escalating analogies. Sentences wander into parenthetical asides and improbable specifics before snapping back to the point, often landing it harder for the detour. Treats catastrophe and trivia with exactly the same tone. Footnote-shaped digressions welcome even without footnotes. Fond of the mess, never actually cruel — the joke is always on the size of the universe, not the reader.",
 };
 
 // ─── Skill Level ─────────────────────────────────────────────────────────────

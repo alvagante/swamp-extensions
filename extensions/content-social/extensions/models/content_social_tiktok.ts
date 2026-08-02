@@ -7,5 +7,12 @@ import {
 export const model = {
   ...createSocialModel(PLATFORM_CONFIGS.tiktok),
   type: "@alvagante/content-social-tiktok",
-  version: "2026.07.11.1",
+  version: "2026.08.02.1",
+  upgrades: [
+    {
+      toVersion: "2026.08.02.1",
+      description: "Add douglasadams persona preset",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
 };

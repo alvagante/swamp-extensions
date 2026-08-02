@@ -78,7 +78,7 @@ Arguments:
 | `skillLevel`   | No       | `novice`, `intermediate`, `senior`, `guru` | `intermediate`         |
 | `outputLength` | No       | `short`, `medium`, `long`                  | `medium`               |
 | `model`        | No       | Any model ID                               | `claude-opus-4-8`      |
-| `persona`      | No       | `neutral`, `alvabot`, `cybergeek`, `abnormalia`, `noir`, `glitchpoet`, `fieldnotes`, `oracle`, `baroque`, `deadpan`, `gonzo`, `punkprof`, `openskills` | `neutral`              |
+| `persona`      | No       | `neutral`, `alvabot`, `cybergeek`, `abnormalia`, `noir`, `glitchpoet`, `fieldnotes`, `oracle`, `baroque`, `deadpan`, `gonzo`, `punkprof`, `openskills`, `douglasadams` | `neutral`              |
 | `personaDescription` | No | Custom voice directive overriding `persona` | —                     |
 | `style`        | No       | Optional style label rendered in the provenance footer | —          |
 | `credits`      | No       | Optional top-right byline before the timestamp | —            |
@@ -135,7 +135,7 @@ Arguments:
 | `skillLevel`   | No       | `novice`, `intermediate`, `senior`, `guru`      | `intermediate`          |
 | `outputLength` | No       | `short`, `medium`, `long`                       | Derived from word count |
 | `model`        | No       | Identifier of whatever produced the content     | `external`              |
-| `persona`      | No       | `neutral`, `alvabot`, `cybergeek`, `abnormalia`, `noir`, `glitchpoet`, `fieldnotes`, `oracle`, `baroque`, `deadpan`, `gonzo`, `punkprof`, `openskills` | `neutral`               |
+| `persona`      | No       | `neutral`, `alvabot`, `cybergeek`, `abnormalia`, `noir`, `glitchpoet`, `fieldnotes`, `oracle`, `baroque`, `deadpan`, `gonzo`, `punkprof`, `openskills`, `douglasadams` | `neutral`               |
 | `personaDescription` | No | Custom voice directive overriding `persona`     | —                       |
 | `style`        | No       | Optional style label rendered in the provenance footer | —             |
 | `credits`      | No       | Optional top-right byline before the timestamp | —                       |

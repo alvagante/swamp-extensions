@@ -299,7 +299,7 @@ async function overlayLogo(
  */
 export const model = {
   type: "@alvagante/content-image",
-  version: "2026.07.05.1",
+  version: "2026.08.02.1",
   globalArguments: z.object({
     apiKey: z.string().optional().meta({ sensitive: true }),
     outputDir: z.string().optional(),
@@ -310,6 +310,12 @@ export const model = {
       toVersion: "2026.07.05.1",
       description:
         "Replace Jimp with pure-JS codecs for the branding logo overlay; no globalArguments schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.08.02.1",
+      description:
+        "Sync shared/content_shared.ts (adds douglasadams persona preset upstream; this extension does not expose a persona argument, no functional change)",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

@@ -437,7 +437,16 @@ async function storeTimeline(
  */
 export const model = {
   type: "@alvagante/content-timeline",
-  version: "2026.06.30.1",
+  version: "2026.08.02.1",
+
+  upgrades: [
+    {
+      toVersion: "2026.08.02.1",
+      description:
+        "Sync shared/content_shared.ts (adds douglasadams persona preset upstream; this extension does not expose a persona argument, no functional change)",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
 
   globalArguments: z.object({
     apiFormat: ApiFormatSchema.default("anthropic"),

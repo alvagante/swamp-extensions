@@ -268,7 +268,15 @@ async function writeCard(
  */
 export const model = {
   type: "@alvagante/content-card",
-  version: "2026.06.24.1",
+  version: "2026.08.02.1",
+  upgrades: [
+    {
+      toVersion: "2026.08.02.1",
+      description:
+        "Sync shared/content_shared.ts (adds douglasadams persona preset upstream; this extension does not expose a persona argument, no functional change)",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: z.object({
     apiKey: z.string().optional().meta({ sensitive: true }),
     outputDir: z.string().optional(),

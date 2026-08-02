@@ -1994,7 +1994,7 @@ async function storePage(
  */
 export const model = {
   type: "@alvagante/content-ixen",
-  version: "2026.07.16.1",
+  version: "2026.08.02.1",
   upgrades: [
     {
       toVersion: "2026.06.15.1",
@@ -2112,6 +2112,11 @@ export const model = {
     {
       toVersion: "2026.07.16.1",
       description: "Fix missing upgrade chain entry",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.08.02.1",
+      description: "Add douglasadams persona preset",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

@@ -1836,7 +1836,14 @@ async function storePage(
  */
 export const model = {
   type: "@alvagante/content-iam",
-  version: "2026.07.01.1",
+  version: "2026.08.02.1",
+  upgrades: [
+    {
+      toVersion: "2026.08.02.1",
+      description: "Add douglasadams persona preset",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: z.object({
     apiFormat: ApiFormatSchema.default("anthropic"),
     apiKey: z.string().optional().meta({ sensitive: true }),

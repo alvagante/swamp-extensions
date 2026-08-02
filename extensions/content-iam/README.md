@@ -103,14 +103,23 @@ Inherits all personas from `content_shared.ts`:
 
 | persona | voice |
 |---|---|
-| `neutral` | balanced, observational |
+| `neutral` | clear, professional, no particular voice signature |
+| `alvabot` | Alessandro Franceschi (example42 blog) — pragmatic, first-person, DevOps-deep, dry humor |
+| `cybergeek` | cyberpunk-inflected prose — sharp, unsentimental, technically dense |
+| `abnormalia` | concise, witty, self-ironic, visually playful, geek-culture aware |
+| `noir` | hardboiled technical noir — terse, atmospheric, suspicious of easy answers |
+| `glitchpoet` | fragmented, rhythmic, image-rich, precise under the distortion |
+| `fieldnotes` | empirical notes from production — concrete, observational, first-hand |
+| `oracle` | compressed systems aphorisms, warnings, paradox, pattern recognition |
+| `baroque` | ornate engineering prose with elaborate analogies and exact conclusions |
+| `deadpan` | flat, sharp, understated, allergic to hype |
 | `gonzo` | Hunter S. Thompson — first-person chaos journalism |
-| `academic` | analytical, precise |
-| `poetic` | lyrical, imagistic |
+| `punkprof` | rigorous teaching with zine attitude and operational scars |
 | `confessional` | raw, intimate, emotionally unguarded |
 | `obituary` | elegiac, retrospective |
 | `myth` | mythic self-narrator — speaks as if already legend |
 | `raconteur` | smart, funny, self-deprecating irony |
+| `douglasadams` | absurdist, digressive, warmly cynical about bureaucracy and cosmic indifference |
 
 ## Workflow integration
 
