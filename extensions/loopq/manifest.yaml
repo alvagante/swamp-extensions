@@ -1,0 +1,16 @@
+manifestVersion: 1
+name: "@alvagante/loopq"
+version: "2026.09.29.1"
+description: "Repo-scoped agent skill for setting up and operating local loopq coding-agent queues through the loopq CLI."
+repository: "https://github.com/alvagante/swamp-extensions"
+paths:
+  base: manifest
+skills:
+  - loopq
+additionalFiles:
+  - README.md
+  - LICENSE
+labels:
+  - agents
+  - loopq
+  - skills

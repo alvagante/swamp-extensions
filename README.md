@@ -17,6 +17,7 @@ Shareable swamp extensions maintained in this repository.
 | `@alvagante/content-social` | Generate platform-shaped post drafts for Facebook, X, LinkedIn, TikTok, and Instagram. |
 | `@alvagante/content-timeline` | Generate self-contained, factually grounded HTML timelines for biographical, historical, project, or technical subjects. |
 | `@alvagante/docker-image-test` | Local Docker image smoke testing: build image matrices, run containers, poll health checks, capture logs, and clean up. |
+| `@alvagante/loopq` | Install the repo-scoped Loopq agent skill for setup, queue work, monitoring, and running agents. |
 | `@alvagante/macos-doctor` | Read-only local macOS security, sanity, and performance posture checks with a severity-rated report. |
 | `@alvagante/youtube-content-pack` | Generate timestamped publishing assets from owned or user-supplied YouTube video metadata and transcripts. |
 
@@ -35,6 +36,7 @@ swamp extension pull @alvagante/content-music
 swamp extension pull @alvagante/content-social
 swamp extension pull @alvagante/content-timeline
 swamp extension pull @alvagante/docker-image-test
+swamp extension pull @alvagante/loopq
 swamp extension pull @alvagante/macos-doctor
 swamp extension pull @alvagante/youtube-content-pack
 ```
@@ -43,12 +45,17 @@ swamp extension pull @alvagante/youtube-content-pack
 
 Each extension is a standalone package under `extensions/<name>/`.
 
+Model packages use Deno checks. Skill-only packages such as `loopq` have no
+TypeScript to check; validate their manifest and package with the Swamp
+commands below.
+
 ```bash
 cd extensions/<name>
-deno task check
 swamp extension fmt manifest.yaml --check
 swamp extension push manifest.yaml --dry-run
 ```
+
+Run `deno task check` as well when the package defines that task.
 
 ## Notes
 
